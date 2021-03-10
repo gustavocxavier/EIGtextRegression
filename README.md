@@ -24,4 +24,4 @@ Anout 2_pipeline:
 
 Additional notes
 ----------------
-- I structured this code based on Ties de Tok tips: https://arc.eaa-online.org/blog/how-keep-your-projects-organized-part-1-folder-structure
+- I structured this code based on [Ties de Tok tips](https://arc.eaa-online.org/blog/how-keep-your-projects-organized-part-1-folder-structure)

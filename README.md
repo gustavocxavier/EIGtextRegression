@@ -1,7 +1,7 @@
 Overview
 --------
 
-This repository contains code to create the dataset for my work in progress called A Text-based Measurement of Expected Investment Growth, which I use text regression and machine learning to forecast the expected investment growth at the firm level. You can either clone this repository with git, or download the entire content as a zip file by clicking on the "Download ZIP" button on "Code" menu above.
+This repository contains code to create the dataset for my work in progress called `A Text-based Measurement of Expected Investment Growth`, which I use text regression and machine learning to forecast the expected investment growth at the firm level. You can either clone this repository with git, or download the entire content as a zip file by clicking on the `Download ZIP` button on `Code` menu above.
 
 How to Run the Code
 -------------------

@@ -1,6 +1,4 @@
-# TODO organize z_wrd
-# TODO update getWords code to load rownames in advance
-
+## Load Packages ---------------------------------------------------------------
 library(data.table)
 library(glmnet)
 library(foreach)
@@ -26,11 +24,11 @@ getLocalTermsMatrix <- function(filing_year, data_base) {
     X <- as.data.frame(t(X))
     colnames(X) <- c(rownames(DT1), rownames(DT2))
     zz <-  as.matrix(X)
-    
+
     firms <- as.double(unique(c(colnames(DT1), colnames(DT2))))
     firms <- tibble(cik = firms) %>%
       left_join(data_base %>% filter(filing.year==filing_year), by="cik")
-    
+
     # Retirando NA
     nrow(firms) ; nrow(zz)
     zz <- zz[!is.na(firms$gvkey),]
@@ -59,11 +57,11 @@ getLocalTermsMatrix <- function(filing_year, data_base) {
     X <- as.data.frame(t(X))
     colnames(X) <- c(rownames(DT1), rownames(DT2))
     zz <-  as.matrix(X)
-    
+
     firms <- as.double(unique(c(colnames(DT1), colnames(DT2))))
     firms <- tibble(cik = firms) %>%
       left_join(data_base %>% filter(filing.year==filing_year[1]), by="cik")
-    
+
     # Retirando NA
     nrow(firms) ; nrow(zz)
     zz <- zz[!is.na(firms$gvkey),]
@@ -92,11 +90,11 @@ getLocalTermsMatrix <- function(filing_year, data_base) {
       X <- as.data.frame(t(X))
       colnames(X) <- c(rownames(DT1), rownames(DT2))
       zz <-  as.matrix(X)
-      
+
       firms <- as.double(unique(c(colnames(DT1), colnames(DT2))))
       firms <- tibble(cik = firms) %>%
         left_join(data_base %>% filter(filing.year==filing_year[i]), by="cik")
-      
+
       # Retirando NA
       nrow(firms) ; nrow(zz)
       zz <- zz[!is.na(firms$gvkey),]
@@ -113,7 +111,7 @@ getLocalTermsMatrix <- function(filing_year, data_base) {
       DT2 <- as.data.frame(as.matrix(outputSample2$X))
       X <- rbindlist(list(DT1, DT2), fill = T) ; X[is.na(X)] <- 0
       outputSample$X <- Matrix::Matrix(as.matrix(X), sparse = TRUE)
-      
+
       outputSample$firms <- rbind(outputSample$firms, outputSample2$firms)
       outputSample$y <- c(outputSample$y, outputSample2$y)
       outputSample$P <- rbind(outputSample$P, outputSample2$P)
@@ -125,14 +123,14 @@ getLocalTermsMatrix <- function(filing_year, data_base) {
 
 estimateByIndustryTerms <- function(YEAR, data_base) {
   require(foreach)
-  
-  
+
+
   gics <- readRDS("0_data/wrds/raw_gics.rds")
-  setDT(gics) ; 
+  setDT(gics) ;
   gics <- gics %>% na.omit %>% mutate(group = substr(gind, 1,4))
   gics <- gics %>% select(gvkey, gics=gind) %>% na.omit
   data_base %>% left_join(gics, by="gvkey") %>% na.omit -> data_base
-  
+
   data_base %>% group_by(filing.year) %>% count %>% data.frame
   cat("\n")
   cat(paste0("Loading training sample between years ", (YEAR-5)," and ", (YEAR-1),".\n\n"))
@@ -141,87 +139,87 @@ estimateByIndustryTerms <- function(YEAR, data_base) {
   summary(lm(trainSample$y ~ as.matrix(trainSample$P), weights = trainSample$me))
   cat(paste0("Loading test sample for year ", YEAR,".\n\n"))
   testSample  <- getLocalTermsMatrix(YEAR, data_base = data_base)
-  
+
   ## Alinhas as duas matrizes de palavras
   DT1 <- as.data.frame(as.matrix(trainSample$X))
   DT2 <- as.data.frame(as.matrix(testSample$X))
   Xtrain <- rbindlist(list(DT1, DT2[0,]), fill = T) ; Xtrain[is.na(Xtrain)] <- 0
   Xtest  <- rbindlist(list(DT1[0,], DT2), fill = T) ; Xtest[is.na(Xtest)]   <- 0
-  
+
   trainSample$X <- Matrix::Matrix(as.matrix(Xtrain), sparse = TRUE)
   testSample$X  <- Matrix::Matrix(as.matrix(Xtest), sparse = TRUE)
-  
+
   rm(DT1,DT2, Xtrain, Xtest)
-  
+
   trainSample2     <- trainSample
   testSample2      <- testSample
-  
+
   output <- list(data.table(filing.year=numeric(),
                             cik=numeric(), permno=numeric(), gvkey=character(),
                             industry=numeric(),
                             d1_ia=numeric(), EIGtext=numeric(),
                             alpha=numeric(), lambda=numeric(), SE=numeric()),
                  list())
-  
+
   names(output) <- c("prediction", "words")
-  
+
   industry_list <- unique(gics$gics)#[1:4]
   industry_list <- c(industry_list, 999999) # Others
-  
+
   cat("Tuning model and predict in each industry... \n")
   pb <- txtProgressBar(min = 0, max = length(industry_list), style = 3)
   for (j in 1:length(industry_list)) {
     trainSample <- trainSample2
     testSample  <- testSample2
-    
+
     a <- trainSample$firms %>% left_join(gics, by="gvkey") %>% data.table
     a[, industry := gics]
     other_industry <- a %>% group_by(gics) %>% count %>% filter(n<50)
     a[gics %in% other_industry$gics, industry := 999999]
-    
+
     b <- testSample$firms %>% left_join(gics, by="gvkey") %>% data.table
     b[, industry := gics]
     b[gics %in% a[industry==999999]$gics, industry := 999999]
-    
+
     # a %>% group_by(gics) %>% count %>% arrange(n) %>% data.table
     # b %>% group_by(gics) %>% count %>% arrange(n) %>% data.table
     # e em a tem que ter no minimo
     # tem que ter em b
-    
+
     a[, keep := (industry == industry_list[j])]
-    b[, keep := (industry == industry_list[j])]  
+    b[, keep := (industry == industry_list[j])]
     a[is.na(keep), keep := FALSE]
     b[is.na(keep), keep := FALSE]
     # a[keep==T,]
     # b[keep==T,]
-    
+
     # j = 8
     if ( sum(a$industry==industry_list[j])!=0 && sum(b$keep == T)>1 ) {
-      
+
       trainSample$firms <- trainSample$firms[a$keep,]
       trainSample$y     <- trainSample$y[a$keep]
       trainSample$me    <- trainSample$me[a$keep]
       trainSample$X     <- Matrix::Matrix(as.matrix(trainSample$X)[a$keep,])
       trainSample$P     <- trainSample$P[a$keep,]
-      
+
       testSample$firms <- testSample$firms[b$keep,]
       testSample$y     <- testSample$y[b$keep]
       testSample$me    <- testSample$me[b$keep]
       testSample$X     <- Matrix::Matrix(as.matrix(testSample$X)[b$keep,])
-      testSample$P     <- testSample$P[b$keep,]      
-      
+      testSample$P     <- testSample$P[b$keep,]
+
       trainX <- cbind(as.matrix(trainSample$P), trainSample$X)
       pw=rep(0,ncol(trainSample$P))
       px=rep(1,ncol(trainSample$X))
       pf=c(pw,px)
       testX <- cbind(as.matrix(testSample$P), testSample$X)
-      
+
       grids <- expand.grid(alpha = seq(from = 0.1, to = 0.9, by = 0.1),
                            lambda =  seq(from = 0.1, to = 0.9, by = 0.1))
       grids$MSE <- NA
       grids <- grids[order(grids$alpha),]
       grids
-      
+
       foreach(i = 1:nrow(grids), .combine = c) %do% {
         fit <- glmnet(x = trainX, y = trainSample$y, family = "gaussian",
                       penalty.factor = pf,
@@ -229,7 +227,7 @@ estimateByIndustryTerms <- function(YEAR, data_base) {
                       alpha = grids$alpha[i], lambda = grids$lambda[i])
         grids$MSE[i] <- mean( ( testSample$y - predict(fit, newx = testX, s = grids$lambda[i]) )^2 )
       }
-      
+
       fit <- glmnet(x = trainX, y = trainSample$y, family = "gaussian",
                     penalty.factor = pf,
                     weights = trainSample$me,
@@ -238,13 +236,13 @@ estimateByIndustryTerms <- function(YEAR, data_base) {
       best_model <- data.table(variables = rownames(coef(fit, s = grids[which.min(grids$MSE), "lambda"])),
                                coefficients = as.vector(coef(fit, s = grids[which.min(grids$MSE), "lambda"])))
       eig_text <- as.vector(predict(fit, newx = testX, s = grids[which.min(grids$MSE),"lambda"]))
-      
+
       output$prediction <- rbind(output$prediction,
                                  testSample$firms %>%
-                                   mutate(industry = industry_list[j]) %>% 
-                                   mutate(d1_ia = testSample$y) %>% 
-                                   mutate(EIGtext = eig_text) %>% 
-                                   mutate(alpha = grids[which.min(grids$MSE),"alpha"]) %>% 
+                                   mutate(industry = industry_list[j]) %>%
+                                   mutate(d1_ia = testSample$y) %>%
+                                   mutate(EIGtext = eig_text) %>%
+                                   mutate(alpha = grids[which.min(grids$MSE),"alpha"]) %>%
                                    mutate(lambda = grids[which.min(grids$MSE),"lambda"]) %>%
                                    mutate(SE = (d1_ia - EIGtext)^2 ) )
       output$words[[j]] <- best_model[coefficients!=0]
@@ -253,35 +251,35 @@ estimateByIndustryTerms <- function(YEAR, data_base) {
     }
     setTxtProgressBar(pb, j)
   }
-  close(pb) 
+  close(pb)
   names(output$words) <- paste0("ind", industry_list)
   return(output)
 }
 
 highPredictiveWords <- function(list_eigText, group, n_wrd=15) {
-  
+
   bestWords <- lapply(list_eigText, "[[", 2)
-  
+
   groupWords <- lapply(bestWords, function(x, i) x[[match(group, names(x))]], i=group)
-  
+
   groupWords[is.na(groupWords)] <- NULL
-  
+
   groupWords <- bind_rows(groupWords)
-  
+
   dt1 <- groupWords %>%
-    filter( !(variables %in% c("(Intercept)", "IGt0","Ret", "q", "cop", "dROE", "Id")) ) %>% 
-    group_by(words = variables) %>% summarise(coeff= mean(coefficients)) %>% 
+    filter( !(variables %in% c("(Intercept)", "IGt0","Ret", "q", "cop", "dROE", "Id")) ) %>%
+    group_by(words = variables) %>% summarise(coeff= mean(coefficients)) %>%
     arrange(-coeff) %>% top_n(n_wrd) %>% mutate(coeff = round(coeff,3)) %>%
     as.data.frame
-  
+
   dt2 <- groupWords %>%
-    filter( !(variables %in% c("(Intercept)", "IGt0","Ret", "q", "cop", "dROE", "Id")) ) %>% 
-    group_by(words = variables) %>% summarise(coeff= mean(coefficients)) %>% 
+    filter( !(variables %in% c("(Intercept)", "IGt0","Ret", "q", "cop", "dROE", "Id")) ) %>%
+    group_by(words = variables) %>% summarise(coeff= mean(coefficients)) %>%
     arrange(coeff) %>% top_n(-n_wrd) %>% mutate(coeff = round(coeff,3)) %>%
     as.data.frame
-  
+
   output <- rbind(dt1, data.frame(words="---", coeff=NA), dt2)
-  
+
   return(output)
 }
 
@@ -340,42 +338,10 @@ eigText$y2018 <- estimateByIndustryTerms(2018, data_base=sccm_a)
 eigText$y2019 <- estimateByIndustryTerms(2019, data_base=sccm_a)
 
 saveRDS(eigText, "2_pipeline/2_out/5b_eigText_terms_Industry.rds")
-eigText <- readRDS("2_pipeline/2_out/5b_eigText_terms_Industry.rds")
-
-### eigText - Year 1 - Evaluate ------------------------------------------------
-
-eigTextAll <- bind_rows(lapply(eigText, "[[", 1))
-
-# Set the same length by taking sub sample.
-set.seed(1)
-HMXZ <- readRDS("2_pipeline/2_out/4a_hmxz.rds")
-HMXZ <- HMXZ[month(date)==6,]
-HMmodel <- HMXZ[sample(nrow(HMXZ), size = nrow(eigTextAll)*0.5),]
-M1model <- eigTextAll[sample(nrow(eigTextAll), size = nrow(eigTextAll)*0.5),]
-
-# RMSE
-SEtext <- (M1model$d1_ia - M1model$EIGtext)^2
-SEhmxz  <- (HMmodel$d1_ia - HMmodel$EIG)^2
-sqrt(sum( SEtext )) / sqrt(sum( SEhmxz ))
-t.test( SEtext, SEhmxz)
-
-# hmxz <- HMXZ[month(date)==6,] %>%
-#   mutate(filing.year = year(fiscaldate)+1) %>%
-#   select(permno, gvkey, filing.year, d1_ia = d1_ia, EIGhmxz=EIG)
-# 
-# text <- eigTextAll %>% #[filing.year>=2000] %>%
-#   inner_join(hmxz, by = c("permno", "gvkey", "filing.year", "d1_ia"))
-# 
-# mean((text$d1_ia - text$EIGtext)^2)
-# mean((text$d1_ia - text$EIGhmxz)^2)
-# 
-# # RMSE
-# sqrt(sum( (text$d1_ia - text$EIGtext)^2 )) / sqrt(sum( (text$d1_ia - text$EIGhmxz)^2 ))
-# t.test( (text$d1_ia - text$EIGtext)^2, (text$d1_ia - text$EIGhmxz)^2)
 
 ## eigText - Year 2 ------------------------------------------------------------
 sccm_a %>%
-  arrange(cik, filing.year) %>% group_by(cik) %>% 
+  arrange(cik, filing.year) %>% group_by(cik) %>%
   mutate(y = dplyr::lead(d1_ia, n = 1)) %>% ungroup %>%
   filter(complete.cases(y)) -> sccm_a
 
@@ -407,9 +373,81 @@ eigText2$y2017 <- estimateByIndustryTerms(2016, data_base=sccm_a)
 # eigText2$y2018 <- estimateByIndustryTerms(2018, data_base=sccm_a)
 
 saveRDS(eigText2, "2_pipeline/2_out/5b_eigText_terms_Industry2.rds")
-eigText2 <- readRDS("2_pipeline/2_out/5b_eigText_terms_Industry2.rds")
+
+
+## eigText - Year 3 ------------------------------------------------------------
+
+sccm_a %>%
+  arrange(cik, filing.year) %>% group_by(cik) %>%
+  mutate(y = dplyr::lead(d1_ia, n = 2)) %>% ungroup %>%
+  filter(complete.cases(y)) -> sccm_a
+
+eigText3 <- list()
+eigText3$y1999 <- estimateByIndustryTerms(1999, data_base = sccm_a)
+eigText3$y2000 <- estimateByIndustryTerms(2000, data_base = sccm_a)
+eigText3$y2001 <- estimateByIndustryTerms(2001, data_base = sccm_a)
+eigText3$y2002 <- estimateByIndustryTerms(2002, data_base = sccm_a)
+eigText3$y2003 <- estimateByIndustryTerms(2003, data_base = sccm_a)
+eigText3$y2004 <- estimateByIndustryTerms(2004, data_base = sccm_a)
+eigText3$y2005 <- estimateByIndustryTerms(2005, data_base = sccm_a)
+eigText3$y2006 <- estimateByIndustryTerms(2006, data_base = sccm_a)
+eigText3$y2007 <- estimateByIndustryTerms(2007, data_base = sccm_a)
+eigText3$y2008 <- estimateByIndustryTerms(2008, data_base = sccm_a)
+eigText3$y2009 <- estimateByIndustryTerms(2009, data_base = sccm_a)
+eigText3$y2009 <- estimateByIndustryTerms(2009, data_base = sccm_a)
+eigText3$y2010 <- estimateByIndustryTerms(2010, data_base = sccm_a)
+eigText3$y2011 <- estimateByIndustryTerms(2011, data_base = sccm_a)
+eigText3$y2012 <- estimateByIndustryTerms(2012, data_base = sccm_a)
+eigText3$y2013 <- estimateByIndustryTerms(2013, data_base = sccm_a)
+eigText3$y2014 <- estimateByIndustryTerms(2014, data_base = sccm_a)
+eigText3$y2015 <- estimateByIndustryTerms(2015, data_base = sccm_a)
+eigText3$y2016 <- estimateByIndustryTerms(2016, data_base = sccm_a)
+
+saveRDS(eigText3, "2_pipeline/2_out/5b_eigText_terms_Industry3.rds")
+
+### eigText - Year 1 - Evaluate ------------------------------------------------
+
+eigText <- readRDS("2_pipeline/2_out/5b_eigText_terms_Industry.rds")
+
+eigTextAll <- bind_rows(lapply(eigText, "[[", 1))
+
+# Set the same length by taking sub sample.
+set.seed(1)
+HMXZ <- readRDS("2_pipeline/2_out/4a_hmxz.rds")
+HMXZ <- HMXZ[month(date)==6,]
+HMmodel <- HMXZ[sample(nrow(HMXZ), size = nrow(eigTextAll)*0.5),]
+M1model <- eigTextAll[sample(nrow(eigTextAll), size = nrow(eigTextAll)*0.5),]
+
+# RMSE
+SEtext <- (M1model$d1_ia - M1model$EIGtext)^2
+SEhmxz  <- (HMmodel$d1_ia - HMmodel$EIG)^2
+sqrt(sum( SEtext )) / sqrt(sum( SEhmxz ))
+t.test( SEtext, SEhmxz)
+
+# # RMSE
+# sqrt(sum( (text$d1_ia.x - text$EIGtext)^2 )) / sqrt(sum( (text$d1_ia.y - text$EIGhmxz)^2 ))
+# t.test( (text$d1_ia.x - text$EIGtext)^2, (text$d1_ia.y - text$EIGhmxz)^2)
+
+hmxz <- HMXZ[month(date)==6,] %>%
+  mutate(filing.year = year(fiscaldate)+1) %>%
+  select(permno, gvkey, filing.year, d1_ia = d1_ia, EIGhmxz=EIG)
+
+text <- eigTextAll %>% #[filing.year>=2000] %>%
+  inner_join(hmxz, by = c("permno", "gvkey", "filing.year", "d1_ia"))
+
+mean((text$d1_ia - text$EIGtext)^2)
+mean((text$d1_ia - text$EIGhmxz)^2)
+
+# RMSE
+RMSE1 <- sqrt(sum( (text$d1_ia - text$EIGtext)^2 )) / sqrt(sum( (text$d1_ia - text$EIGhmxz)^2 ))
+test1 <- t.test( (text$d1_ia - text$EIGtext)^2, (text$d1_ia - text$EIGhmxz)^2)
+RMSE1;test1
 
 ### eigText - Year 2 - Evaluate ------------------------------------------------
+
+eigText2 <- readRDS("2_pipeline/2_out/5b_eigText_terms_Industry2.rds")
+
+
 # HMXZ  <- readRDS("~/Data/eig/hmxz2.rds")
 HMXZ <- readRDS("2_pipeline/2_out/4a_hmxz.rds")
 HMXZ  <- HMXZ[month(date)==6,]
@@ -438,41 +476,13 @@ mean((text$d1_ia.x - text$EIGtext)^2)
 mean((text$d1_ia.y - text$EIGhmxz)^2)
 
 # RMSE
-sqrt(sum( (text$d1_ia.x - text$EIGtext)^2 )) / sqrt(sum( (text$d1_ia.y - text$EIGhmxz)^2 ))
-t.test( (text$d1_ia.x - text$EIGtext)^2, (text$d1_ia.y - text$EIGhmxz)^2)
-
-## eigText - Year 3 ------------------------------------------------------------
-
-sccm_a %>%
-  arrange(cik, filing.year) %>% group_by(cik) %>% 
-  mutate(y = dplyr::lead(d1_ia, n = 2)) %>% ungroup %>%
-  filter(complete.cases(y)) -> sccm_a
-
-eigText3 <- list()
-eigText3$y1999 <- estimateByIndustryTerms(1999, data_base = sccm_a)
-eigText3$y2000 <- estimateByIndustryTerms(2000, data_base = sccm_a)
-eigText3$y2001 <- estimateByIndustryTerms(2001, data_base = sccm_a)
-eigText3$y2002 <- estimateByIndustryTerms(2002, data_base = sccm_a)
-eigText3$y2003 <- estimateByIndustryTerms(2003, data_base = sccm_a)
-eigText3$y2004 <- estimateByIndustryTerms(2004, data_base = sccm_a)
-eigText3$y2005 <- estimateByIndustryTerms(2005, data_base = sccm_a)
-eigText3$y2006 <- estimateByIndustryTerms(2006, data_base = sccm_a)
-eigText3$y2007 <- estimateByIndustryTerms(2007, data_base = sccm_a)
-eigText3$y2008 <- estimateByIndustryTerms(2008, data_base = sccm_a)
-eigText3$y2009 <- estimateByIndustryTerms(2009, data_base = sccm_a)
-eigText3$y2009 <- estimateByIndustryTerms(2009, data_base = sccm_a)
-eigText3$y2010 <- estimateByIndustryTerms(2010, data_base = sccm_a)
-eigText3$y2011 <- estimateByIndustryTerms(2011, data_base = sccm_a)
-eigText3$y2012 <- estimateByIndustryTerms(2012, data_base = sccm_a)
-eigText3$y2013 <- estimateByIndustryTerms(2013, data_base = sccm_a)
-eigText3$y2014 <- estimateByIndustryTerms(2014, data_base = sccm_a)
-eigText3$y2015 <- estimateByIndustryTerms(2015, data_base = sccm_a)
-eigText3$y2016 <- estimateByIndustryTerms(2016, data_base = sccm_a)
-
-saveRDS(eigText3, "2_pipeline/2_out/5b_eigText_terms_Industry3.rds")
-eigText3 <- readRDS("2_pipeline/2_out/5b_eigText_terms_Industry3.rds")
+RMSE2 <- sqrt(sum( (text$d1_ia.x - text$EIGtext)^2 )) / sqrt(sum( (text$d1_ia.y - text$EIGhmxz)^2 ))
+test2 <- t.test( (text$d1_ia.x - text$EIGtext)^2, (text$d1_ia.y - text$EIGhmxz)^2)
+RMSE2;test2
 
 ### eigText - Year 3 - Evaluate ------------------------------------------------
+
+eigText3 <- readRDS("2_pipeline/2_out/5b_eigText_terms_Industry3.rds")
 
 # HMXZ  <- readRDS("~/Data/eig/hmxz3.rds")
 HMXZ <- readRDS("2_pipeline/2_out/4a_hmxz.rds")
@@ -503,8 +513,14 @@ mean((text$d1_ia.x - text$EIGtext)^2)
 mean((text$d1_ia.y - text$EIGhmxz)^2)
 
 # RMSE
-sqrt(sum( (text$d1_ia.x - text$EIGtext)^2 )) / sqrt(sum( (text$d1_ia.y - text$EIGhmxz)^2 ))
-t.test( (text$d1_ia.x - text$EIGtext)^2, (text$d1_ia.y - text$EIGhmxz)^2)
+RMSE3 <- sqrt(sum( (text$d1_ia.x - text$EIGtext)^2 )) / sqrt(sum( (text$d1_ia.y - text$EIGhmxz)^2 ))
+test3 <- t.test( (text$d1_ia.x - text$EIGtext)^2, (text$d1_ia.y - text$EIGhmxz)^2)
+RMSE3;test3
+
+## Output Evaluation -----------------------------------------------------------
+evaluation <- list(RMSE = c(RMSE1, RMSE2, RMSE3),
+                   "t-stat" = list(test1, test2, test3))
+saveRDS(evaluation, "2_pipeline/2_out/5b_eigText_evaluation_Industry.rds")
 
 
 ## High Predictive Words -------------------------------------------------------
@@ -611,16 +627,19 @@ industryWords <- lapply(bestWords, function(x, i) x[[match("ind999999", names(x)
 industryWords[is.na(industryWords)] <- NULL
 industryWords <- bind_rows(industryWords)
 industryWords %>%
-  filter( !(variables %in% c("(Intercept)", "q", "cop", "dROE", "Id")) ) %>% 
-  group_by(words = variables) %>% summarise(coeff= mean(coefficients)) %>% 
+  filter( !(variables %in% c("(Intercept)", "q", "cop", "dROE", "Id")) ) %>%
+  group_by(words = variables) %>% summarise(coeff= mean(coefficients)) %>%
   arrange(-coeff) %>% top_n(10) %>% mutate(coeff = round(coeff,3)) %>%
   as.data.frame
 
 industryWords %>%
-  filter( !(variables %in% c("(Intercept)", "q", "cop", "dROE", "Id")) ) %>% 
-  group_by(words = variables) %>% summarise(coeff= mean(coefficients)) %>% 
+  filter( !(variables %in% c("(Intercept)", "q", "cop", "dROE", "Id")) ) %>%
+  group_by(words = variables) %>% summarise(coeff= mean(coefficients)) %>%
   arrange(coeff) %>% top_n(-10) %>% mutate(coeff = round(coeff,3)) %>%
   as.data.frame
 
 
 # TODO: Build a simple shiny app to analyze each industry
+# TODO organize z_wrd
+# TODO update getWords code to load rownames in advance
+

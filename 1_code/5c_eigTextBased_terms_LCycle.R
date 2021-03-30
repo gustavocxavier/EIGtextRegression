@@ -1,3 +1,4 @@
+## Load Packages ---------------------------------------------------------------
 library(data.table)
 library(glmnet)
 library(foreach)
@@ -23,11 +24,11 @@ getLocalTermsMatrix <- function(filing_year, data_base) {
     X <- as.data.frame(t(X))
     colnames(X) <- c(rownames(DT1), rownames(DT2))
     zz <-  as.matrix(X)
-    
+
     firms <- as.double(unique(c(colnames(DT1), colnames(DT2))))
     firms <- tibble(cik = firms) %>%
       left_join(data_base %>% filter(filing.year==filing_year), by="cik")
-    
+
     # Retirando NA
     nrow(firms) ; nrow(zz)
     zz <- zz[!is.na(firms$gvkey),]
@@ -56,11 +57,11 @@ getLocalTermsMatrix <- function(filing_year, data_base) {
     X <- as.data.frame(t(X))
     colnames(X) <- c(rownames(DT1), rownames(DT2))
     zz <-  as.matrix(X)
-    
+
     firms <- as.double(unique(c(colnames(DT1), colnames(DT2))))
     firms <- tibble(cik = firms) %>%
       left_join(data_base %>% filter(filing.year==filing_year[1]), by="cik")
-    
+
     # Retirando NA
     nrow(firms) ; nrow(zz)
     zz <- zz[!is.na(firms$gvkey),]
@@ -89,11 +90,11 @@ getLocalTermsMatrix <- function(filing_year, data_base) {
       X <- as.data.frame(t(X))
       colnames(X) <- c(rownames(DT1), rownames(DT2))
       zz <-  as.matrix(X)
-      
+
       firms <- as.double(unique(c(colnames(DT1), colnames(DT2))))
       firms <- tibble(cik = firms) %>%
         left_join(data_base %>% filter(filing.year==filing_year[1]), by="cik")
-      
+
       # Retirando NA
       nrow(firms) ; nrow(zz)
       zz <- zz[!is.na(firms$gvkey),]
@@ -110,7 +111,7 @@ getLocalTermsMatrix <- function(filing_year, data_base) {
       DT2 <- as.data.frame(as.matrix(outputSample2$X))
       X <- rbindlist(list(DT1, DT2), fill = T) ; X[is.na(X)] <- 0
       outputSample$X <- Matrix::Matrix(as.matrix(X), sparse = TRUE)
-      
+
       outputSample$firms <- rbind(outputSample$firms, outputSample2$firms)
       outputSample$y <- c(outputSample$y, outputSample2$y)
       outputSample$P <- rbind(outputSample$P, outputSample2$P)
@@ -122,16 +123,16 @@ getLocalTermsMatrix <- function(filing_year, data_base) {
 
 estimateByLifeCycleTerms <- function(YEAR, data_base) {
   require(foreach)
-  
+
   # gics <- readRDS("0_data/wrds/raw_gics.rds")
   lcycle <- readRDS("2_pipeline/2_out/2a_life_cycle_faff.rds")
-  setDT(lcycle) 
+  setDT(lcycle)
   lcycle <- lcycle %>%
-    mutate(filing.year = fyear + 1) %>% 
+    mutate(filing.year = fyear + 1) %>%
     select(gvkey, filing.year, LC=DCS) %>% filter(LC!=0)
-  
+
   data_base %>% left_join(lcycle, by=c("gvkey", "filing.year")) %>% na.omit -> data_base
-  
+
   data_base %>% group_by(filing.year) %>% count %>% data.frame
   cat("\n")
   cat(paste0("Loading training sample between years ", (YEAR-5)," and ", (YEAR-1),".\n\n"))
@@ -140,75 +141,75 @@ estimateByLifeCycleTerms <- function(YEAR, data_base) {
   summary(lm(trainSample$y ~ as.matrix(trainSample$P), weights = trainSample$me))
   cat(paste0("Loading test sample for year ", YEAR,".\n\n"))
   testSample  <- getLocalTermsMatrix(YEAR, data_base = data_base)
-  
+
   ## Alinhas as duas matrizes de palavras
   DT1 <- as.data.frame(as.matrix(trainSample$X))
   DT2 <- as.data.frame(as.matrix(testSample$X))
   Xtrain <- rbindlist(list(DT1, DT2[0,]), fill = T) ; Xtrain[is.na(Xtrain)] <- 0
   Xtest  <- rbindlist(list(DT1[0,], DT2), fill = T) ; Xtest[is.na(Xtest)]   <- 0
-  
+
   trainSample$X <- Matrix::Matrix(as.matrix(Xtrain), sparse = TRUE)
   testSample$X  <- Matrix::Matrix(as.matrix(Xtest), sparse = TRUE)
-  
+
   rm(DT1,DT2, Xtrain, Xtest)
-  
+
   trainSample2     <- trainSample
   testSample2      <- testSample
-  
+
   output <- list(data.table(filing.year=numeric(),
                             cik=numeric(), permno=numeric(), gvkey=character(),
                             life_cycle=numeric(),
                             d1_ia=numeric(), EIGtext=numeric(),
                             alpha=numeric(), lambda=numeric(), SE=numeric()),
                  list())
-  
+
   names(output) <- c("prediction", "words")
-  
+
   life_cycle_list <- unique(lcycle$LC)#[1:4]
   # life_cycle_list <- c(life_cycle_list, 999999) # Others
-  
+
   cat("Tuning model and predict in each life_cycle... \n")
   pb <- txtProgressBar(min = 0, max = length(life_cycle_list), style = 3)
   for (j in 1:length(life_cycle_list)) {
     trainSample <- trainSample2
     testSample  <- testSample2
-    
+
     a <- trainSample$firms %>% left_join(lcycle, by=c("gvkey", "filing.year")) %>% data.table
     a[, life_cycle := LC]
 
     b <- testSample$firms %>% left_join(lcycle, by=c("gvkey", "filing.year")) %>% data.table
     b[, life_cycle := LC]
-  
+
     a[, keep := (life_cycle == life_cycle_list[j])]
-    b[, keep := (life_cycle == life_cycle_list[j])]  
+    b[, keep := (life_cycle == life_cycle_list[j])]
     a[is.na(keep), keep := FALSE]
     b[is.na(keep), keep := FALSE]
 
-      
+
     trainSample$firms <- trainSample$firms[a$keep,]
     trainSample$y     <- trainSample$y[a$keep]
     trainSample$me    <- trainSample$me[a$keep]
     trainSample$X     <- Matrix::Matrix(as.matrix(trainSample$X)[a$keep,])
     trainSample$P     <- trainSample$P[a$keep,]
-    
+
     testSample$firms <- testSample$firms[b$keep,]
     testSample$y     <- testSample$y[b$keep]
     testSample$me    <- testSample$me[b$keep]
     testSample$X     <- Matrix::Matrix(as.matrix(testSample$X)[b$keep,])
-    testSample$P     <- testSample$P[b$keep,]      
-    
+    testSample$P     <- testSample$P[b$keep,]
+
     trainX <- cbind(as.matrix(trainSample$P), trainSample$X)
     pw=rep(0,ncol(trainSample$P))
     px=rep(1,ncol(trainSample$X))
     pf=c(pw,px)
     testX <- cbind(as.matrix(testSample$P), testSample$X)
-    
+
     grids <- expand.grid(alpha = seq(from = 0.1, to = 0.9, by = 0.1),
                          lambda =  seq(from = 0.1, to = 0.9, by = 0.1))
     grids$MSE <- NA
     grids <- grids[order(grids$alpha),]
     grids
-    
+
     foreach(i = 1:nrow(grids), .combine = c) %do% {
       fit <- glmnet(x = trainX, y = trainSample$y, family = "gaussian",
                     penalty.factor = pf,
@@ -216,7 +217,7 @@ estimateByLifeCycleTerms <- function(YEAR, data_base) {
                     alpha = grids$alpha[i], lambda = grids$lambda[i])
       grids$MSE[i] <- mean( ( testSample$y - predict(fit, newx = testX, s = grids$lambda[i]) )^2 )
     }
-    
+
     fit <- glmnet(x = trainX, y = trainSample$y, family = "gaussian",
                   penalty.factor = pf,
                   weights = trainSample$me,
@@ -225,20 +226,20 @@ estimateByLifeCycleTerms <- function(YEAR, data_base) {
     best_model <- data.table(variables = rownames(coef(fit, s = grids[which.min(grids$MSE), "lambda"])),
                              coefficients = as.vector(coef(fit, s = grids[which.min(grids$MSE), "lambda"])))
     eig_text <- as.vector(predict(fit, newx = testX, s = grids[which.min(grids$MSE),"lambda"]))
-    
+
     output$prediction <- rbind(output$prediction,
                                testSample$firms %>%
-                                 mutate(life_cycle = life_cycle_list[j]) %>% 
-                                 mutate(d1_ia = testSample$y) %>% 
-                                 mutate(EIGtext = eig_text) %>% 
-                                 mutate(alpha = grids[which.min(grids$MSE),"alpha"]) %>% 
+                                 mutate(life_cycle = life_cycle_list[j]) %>%
+                                 mutate(d1_ia = testSample$y) %>%
+                                 mutate(EIGtext = eig_text) %>%
+                                 mutate(alpha = grids[which.min(grids$MSE),"alpha"]) %>%
                                  mutate(lambda = grids[which.min(grids$MSE),"lambda"]) %>%
                                  mutate(SE = (d1_ia - EIGtext)^2 ) )
     output$words[[j]] <- best_model[coefficients!=0]
-    
+
     setTxtProgressBar(pb, j)
   }
-  close(pb) 
+  close(pb)
   names(output$words) <- paste0("LCycle", life_cycle_list)
   return(output)
 }
@@ -278,7 +279,7 @@ saveRDS(eigText, "2_pipeline/2_out/5c_eigText_terms_LifeCycle.rds")
 
 ## eigText - Year 2 ------------------------------------------------------------
 
-sccm_a %>% arrange(cik, filing.year) %>% group_by(cik) %>% 
+sccm_a %>% arrange(cik, filing.year) %>% group_by(cik) %>%
   mutate(y = dplyr::lead(d1_ia, n = 1)) -> sccm_a
 
 eigTextLC2 <- list()
@@ -313,7 +314,7 @@ saveRDS(eigTextLC2, "2_pipeline/2_out/5c_eigText_terms_LifeCycle2.rds")
 ## eigText - Year 3 ------------------------------------------------------------
 eigTextLC3 <- list()
 
-sccm_a %>% arrange(cik, filing.year) %>% group_by(cik) %>% 
+sccm_a %>% arrange(cik, filing.year) %>% group_by(cik) %>%
   mutate(y = dplyr::lead(d1_ia, n = 2))
 
 eigTextLC3$y1999 <- estimateByLifeCycleTerms(1999, data_base = sccm_a)
@@ -347,6 +348,122 @@ saveRDS(eigTextLC3, "2_pipeline/2_out/5c_eigText_terms_LifeCycle3.rds")
 eigTextLC1 <- readRDS("2_pipeline/2_out/5c_eigText_terms_LifeCycle.rds")
 eigTextLC2 <- readRDS("2_pipeline/2_out/5c_eigText_terms_LifeCycle2.rds")
 eigTextLC3 <- readRDS("2_pipeline/2_out/5c_eigText_terms_LifeCycle3.rds")
+
+### eigText - Year 1 - Evaluate ------------------------------------------------
+
+eigText <- readRDS("2_pipeline/2_out/5c_eigText_terms_LifeCycle.rds")
+eigTextAll <- bind_rows(lapply(eigText, "[[", 1))
+
+# Set the same length by taking sub sample.
+set.seed(1)
+HMXZ <- readRDS("2_pipeline/2_out/4a_hmxz.rds")
+HMXZ <- HMXZ[month(date)==6,]
+HMmodel <- HMXZ[sample(nrow(HMXZ), size = nrow(eigTextAll)*0.5),]
+M1model <- eigTextAll[sample(nrow(eigTextAll), size = nrow(eigTextAll)*0.5),]
+
+# RMSE
+SEtext <- (M1model$d1_ia - M1model$EIGtext)^2
+SEhmxz  <- (HMmodel$d1_ia - HMmodel$EIG)^2
+sqrt(sum( SEtext )) / sqrt(sum( SEhmxz ))
+t.test( SEtext, SEhmxz)
+
+# # RMSE
+# sqrt(sum( (text$d1_ia.x - text$EIGtext)^2 )) / sqrt(sum( (text$d1_ia.y - text$EIGhmxz)^2 ))
+# t.test( (text$d1_ia.x - text$EIGtext)^2, (text$d1_ia.y - text$EIGhmxz)^2)
+
+hmxz <- HMXZ[month(date)==6,] %>%
+  mutate(filing.year = year(fiscaldate)+1) %>%
+  select(permno, gvkey, filing.year, d1_ia = d1_ia, EIGhmxz=EIG)
+
+text <- eigTextAll %>% #[filing.year>=2000] %>%
+  inner_join(hmxz, by = c("permno", "gvkey", "filing.year", "d1_ia"))
+
+mean((text$d1_ia - text$EIGtext)^2)
+mean((text$d1_ia - text$EIGhmxz)^2)
+
+# RMSE
+RMSE1 <- sqrt(sum( (text$d1_ia - text$EIGtext)^2 )) / sqrt(sum( (text$d1_ia - text$EIGhmxz)^2 ))
+test1 <- t.test( (text$d1_ia - text$EIGtext)^2, (text$d1_ia - text$EIGhmxz)^2)
+RMSE1;test1
+
+### eigText - Year 2 - Evaluate ------------------------------------------------
+
+# eigText2 <- readRDS("2_pipeline/2_out/5c_eigText_terms_LifeCycle2.rds")
+
+
+# HMXZ  <- readRDS("~/Data/eig/hmxz2.rds")
+HMXZ <- readRDS("2_pipeline/2_out/4a_hmxz.rds")
+HMXZ  <- HMXZ[month(date)==6,]
+eigText <- readRDS("2_pipeline/2_out/5c_eigText_terms_LifeCycle2.rds")
+eigTextAll <- bind_rows(lapply(eigText, "[[", 1))
+
+# Set the same length by taking sub sample.
+set.seed(1)
+HMmodel <- HMXZ[sample(nrow(HMXZ), size = nrow(eigTextAll)*0.5),]
+M1model <- eigTextAll[sample(nrow(eigTextAll), size = nrow(eigTextAll)*0.5),]
+
+# RMSE
+SEtext <- (M1model$d1_ia - M1model$EIGtext)^2
+SEhmxz  <- (HMmodel$d1_ia - HMmodel$EIG)^2
+sqrt(sum( SEtext )) / sqrt(sum( SEhmxz ))
+t.test( SEtext, SEhmxz)
+
+hmxz <- HMXZ[month(date)==6,] %>%
+  mutate(filing.year = year(fiscaldate)+1) %>%
+  select(permno, gvkey, filing.year, d1_ia = d1_ia, EIGhmxz=EIG)
+
+text <- eigTextAll %>% #[filing.year>=2000] %>%
+  inner_join(hmxz, by = c("permno", "gvkey", "filing.year"))
+
+mean((text$d1_ia.x - text$EIGtext)^2)
+mean((text$d1_ia.y - text$EIGhmxz)^2)
+
+# RMSE
+RMSE2 <- sqrt(sum( (text$d1_ia.x - text$EIGtext)^2 )) / sqrt(sum( (text$d1_ia.y - text$EIGhmxz)^2 ))
+test2 <- t.test( (text$d1_ia.x - text$EIGtext)^2, (text$d1_ia.y - text$EIGhmxz)^2)
+RMSE2;test2
+
+### eigText - Year 3 - Evaluate ------------------------------------------------
+
+eigText3 <- readRDS("2_pipeline/2_out/5c_eigText_terms_LifeCycle3.rds")
+
+# HMXZ  <- readRDS("~/Data/eig/hmxz3.rds")
+HMXZ <- readRDS("2_pipeline/2_out/4a_hmxz.rds")
+HMXZ  <- HMXZ[month(date)==6,]
+eigText <- readRDS("2_pipeline/2_out/5b_eigText_terms_Industry3.rds")
+eigTextAll <- bind_rows(lapply(eigText, "[[", 1))
+
+# Set the same length by taking sub sample.
+set.seed(1)
+HMmodel <- HMXZ[sample(nrow(HMXZ), size = nrow(eigTextAll)*0.5),]
+M1model <- eigTextAll[sample(nrow(eigTextAll), size = nrow(eigTextAll)*0.5),]
+
+# RMSE
+SEtext <- (M1model$d1_ia - M1model$EIGtext)^2
+SEhmxz  <- (HMmodel$d1_ia - HMmodel$EIG)^2
+sqrt(sum( SEtext )) / sqrt(sum( SEhmxz ))
+t.test( SEtext, SEhmxz)
+
+
+hmxz <- HMXZ[month(date)==6,] %>%
+  mutate(filing.year = year(fiscaldate)+1) %>%
+  select(permno, gvkey, filing.year, d1_ia = d1_ia, EIGhmxz=EIG)
+
+text <- eigTextAll %>% #[filing.year>=2000] %>%
+  inner_join(hmxz, by = c("permno", "gvkey", "filing.year"))
+
+mean((text$d1_ia.x - text$EIGtext)^2)
+mean((text$d1_ia.y - text$EIGhmxz)^2)
+
+# RMSE
+RMSE3 <- sqrt(sum( (text$d1_ia.x - text$EIGtext)^2 )) / sqrt(sum( (text$d1_ia.y - text$EIGhmxz)^2 ))
+test3 <- t.test( (text$d1_ia.x - text$EIGtext)^2, (text$d1_ia.y - text$EIGhmxz)^2)
+RMSE3;test3
+
+## Output Evaluation -----------------------------------------------------------
+evaluation <- list(RMSE = c(RMSE1, RMSE2, RMSE3),
+                   "t-stat" = list(test1, test2, test3))
+saveRDS(evaluation, "2_pipeline/2_out/5b_eigText_evaluation_Industry.rds")
 
 ## MSE Analysis: Confront with HMXZ model --------------------------------------
 

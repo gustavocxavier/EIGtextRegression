@@ -463,7 +463,7 @@ RMSE3;test3
 ## Output Evaluation -----------------------------------------------------------
 evaluation <- list(RMSE = c(RMSE1, RMSE2, RMSE3),
                    "t-stat" = list(test1, test2, test3))
-saveRDS(evaluation, "2_pipeline/2_out/5b_eigText_evaluation_Industry.rds")
+saveRDS(evaluation, "2_pipeline/2_out/5c_eigText_evaluation_LifeCycle.rds")
 
 ## MSE Analysis: Confront with HMXZ model --------------------------------------
 

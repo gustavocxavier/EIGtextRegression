@@ -1,5 +1,7 @@
 ## Generate Output Table
 
+# library(xtable)
+
 eval_CS  <- readRDS("2_pipeline/2_out/5a_eigText_evaluation_CS.rds")
 eval_Ind <- readRDS("2_pipeline/2_out/5b_eigText_evaluation_Industry.rds")
 eval_LC  <- readRDS("2_pipeline/2_out/5c_eigText_evaluation_LifeCycle.rds")
@@ -30,6 +32,9 @@ for (i in 1:3) {
   }
 }
 DF
+
+print(xtable::xtable(DF), include.rownames = FALSE)
+xlsx::write.xlsx(DF, "3_output/results/RMSE.xlsx")
 
 # library(data.table)
 # library(tidyverse)

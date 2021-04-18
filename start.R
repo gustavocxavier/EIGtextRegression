@@ -25,15 +25,6 @@ if (!(dir.exists(file.path(getwd(), "2_pipeline")))) {
   dir.create(file.path(getwd(), "2_pipeline"))
 }
 
-pipeline <- file.path(getwd(), "2_pipeline")
-
-for (folder in c('0_tmp', '1_store', '2_out')){
-  if (!(dir.exists(file.path(pipeline, folder)))) {
-    dir.create(file.path(pipeline, folder))
-  }
-}
-rm(pipeline, folder)
-
 ## Imports ---------------------------------------------------------------------
 
 library(RPostgres)
@@ -44,10 +35,10 @@ library(tidyverse)
 
 # ## Install packages by using groundhog to address reproducible research
 # ## Se more in http://datacolada.org/95 or https://groundhogr.com/
-# 
+#
 # ## All the library imports go here
 # pkgs = c('lubridate','data.table', 'dplyr')
-# 
+#
 # library(groundhog)
 # groundhog_day = "2020-12-31" # Last date when script runs as expected
 # groundhog.library(pkgs, groundhog_day)
@@ -64,7 +55,7 @@ source('1_code/functions.R')
 
 
 # ## Load Data From server (Run once)
-# source("Data/getWRDSdata.R", echo = T)  
+# source("Data/getWRDSdata.R", echo = T)
 
 source("1_code/1a_organizeCRSPComp.R",          echo = T)
 source("1_code/1b_organizeCCM.R",               echo = T)

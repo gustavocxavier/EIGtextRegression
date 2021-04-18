@@ -296,7 +296,7 @@ winsorize <- function (x, fraction=0.01) {
 }
 
 ## Load SCCM_A -----------------------------------------------------------------
-sccm_a <- readRDS("2_pipeline/2_out/3a_sccm_a.rds")
+sccm_a <- readRDS("2_pipeline/3a_sccm_a.rds")
 setDT(sccm_a)
 sccm_a[, d1_ia := winsorize(d1_ia),  by=c("filing.year")]
 sccm_a[, me    := winsorize(me  ),   by=c("filing.year")]
@@ -337,7 +337,7 @@ eigText$y2017 <- estimateByIndustryTerms(2017, data_base=sccm_a)
 eigText$y2018 <- estimateByIndustryTerms(2018, data_base=sccm_a)
 eigText$y2019 <- estimateByIndustryTerms(2019, data_base=sccm_a)
 
-saveRDS(eigText, "2_pipeline/2_out/5b_eigText_terms_Industry.rds")
+saveRDS(eigText, "2_pipeline/5b_eigText_terms_Industry.rds")
 
 ## eigText - Year 2 ------------------------------------------------------------
 sccm_a %>%
@@ -372,7 +372,7 @@ eigText2$y2017 <- estimateByIndustryTerms(2016, data_base=sccm_a)
 # # TODO estimateByIndustryTerms(2018) give-me "Warning message: In getLocalTermsMatrix(YEAR) : NAs introduced by coercion"eigText2$y2017 <- estimateByIndustryTerms(2017, data_base=sccm_a)
 # eigText2$y2018 <- estimateByIndustryTerms(2018, data_base=sccm_a)
 
-saveRDS(eigText2, "2_pipeline/2_out/5b_eigText_terms_Industry2.rds")
+saveRDS(eigText2, "2_pipeline/5b_eigText_terms_Industry2.rds")
 
 
 ## eigText - Year 3 ------------------------------------------------------------
@@ -403,17 +403,17 @@ eigText3$y2014 <- estimateByIndustryTerms(2014, data_base = sccm_a)
 eigText3$y2015 <- estimateByIndustryTerms(2015, data_base = sccm_a)
 eigText3$y2016 <- estimateByIndustryTerms(2016, data_base = sccm_a)
 
-saveRDS(eigText3, "2_pipeline/2_out/5b_eigText_terms_Industry3.rds")
+saveRDS(eigText3, "2_pipeline/5b_eigText_terms_Industry3.rds")
 
 ### eigText - Year 1 - Evaluate ------------------------------------------------
 
-eigText <- readRDS("2_pipeline/2_out/5b_eigText_terms_Industry.rds")
+eigText <- readRDS("2_pipeline/5b_eigText_terms_Industry.rds")
 
 eigTextAll <- bind_rows(lapply(eigText, "[[", 1))
 
 # Set the same length by taking sub sample.
 set.seed(1)
-HMXZ <- readRDS("2_pipeline/2_out/4a_hmxz.rds")
+HMXZ <- readRDS("2_pipeline/4a_hmxz.rds")
 HMXZ <- HMXZ[month(date)==6,]
 HMmodel <- HMXZ[sample(nrow(HMXZ), size = nrow(eigTextAll)*0.5),]
 M1model <- eigTextAll[sample(nrow(eigTextAll), size = nrow(eigTextAll)*0.5),]
@@ -445,13 +445,13 @@ RMSE1;test1
 
 ### eigText - Year 2 - Evaluate ------------------------------------------------
 
-eigText2 <- readRDS("2_pipeline/2_out/5b_eigText_terms_Industry2.rds")
+eigText2 <- readRDS("2_pipeline/5b_eigText_terms_Industry2.rds")
 
 
 # HMXZ  <- readRDS("~/Data/eig/hmxz2.rds")
-HMXZ <- readRDS("2_pipeline/2_out/4a_hmxz.rds")
+HMXZ <- readRDS("2_pipeline/4a_hmxz.rds")
 HMXZ  <- HMXZ[month(date)==6,]
-eigText <- readRDS("2_pipeline/2_out/5b_eigText_terms_Industry2.rds")
+eigText <- readRDS("2_pipeline/5b_eigText_terms_Industry2.rds")
 eigTextAll <- bind_rows(lapply(eigText, "[[", 1))
 
 # Set the same length by taking sub sample.
@@ -482,12 +482,12 @@ RMSE2;test2
 
 ### eigText - Year 3 - Evaluate ------------------------------------------------
 
-eigText3 <- readRDS("2_pipeline/2_out/5b_eigText_terms_Industry3.rds")
+eigText3 <- readRDS("2_pipeline/5b_eigText_terms_Industry3.rds")
 
 # HMXZ  <- readRDS("~/Data/eig/hmxz3.rds")
-HMXZ <- readRDS("2_pipeline/2_out/4a_hmxz.rds")
+HMXZ <- readRDS("2_pipeline/4a_hmxz.rds")
 HMXZ  <- HMXZ[month(date)==6,]
-eigText <- readRDS("2_pipeline/2_out/5b_eigText_terms_Industry3.rds")
+eigText <- readRDS("2_pipeline/5b_eigText_terms_Industry3.rds")
 eigTextAll <- bind_rows(lapply(eigText, "[[", 1))
 
 # Set the same length by taking sub sample.
@@ -520,7 +520,7 @@ RMSE3;test3
 ## Output Evaluation -----------------------------------------------------------
 evaluation <- list(RMSE = c(RMSE1, RMSE2, RMSE3),
                    "t-stat" = list(test1, test2, test3))
-saveRDS(evaluation, "2_pipeline/2_out/5b_eigText_evaluation_Industry.rds")
+saveRDS(evaluation, "2_pipeline/5b_eigText_evaluation_Industry.rds")
 
 
 ## High Predictive Words -------------------------------------------------------

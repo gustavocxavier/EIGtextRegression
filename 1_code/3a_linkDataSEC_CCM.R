@@ -7,7 +7,7 @@ source('1_code/functions.R')
 
 ## Load raw data --------------------------------------------------------------
 wciklink_gvkey <- readRDS("0_data/wrds/wciklink_gvkey.rds")
-ccm_a          <- readRDS("2_pipeline/2_out/1b_ccm_a.rds")
+ccm_a          <- readRDS("2_pipeline/1b_ccm_a.rds")
 # sec_index      <- fst::read_fst("~/data/SEC_EDGAR/1994_2019master.fst")
 
 ## Select link validation type: flag == (2) or (3) ----------------------------
@@ -23,7 +23,7 @@ ccm_a          <- readRDS("2_pipeline/2_out/1b_ccm_a.rds")
 #   3. - is for CIK-CUSIP links with 9-digit CUSIPs that were found in SEC
 #        filings that match the CUSIPs and respective company names in the CUSIP
 #        bureau dataset.
-# 
+#
 # We advise researchers to use only (2) and (3) type links when using this table
 # for linking purposes.
 #
@@ -32,7 +32,7 @@ scm_link <- wciklink_gvkey %>% filter(flag %in% c(2,3))
 ## Select only lines with at least one 10-k
 scm_link <- scm_link %>% filter(n10k>0) %>% select(-(n10k_nt:flag))
 
-## Remove NA 2.629 links em que o datadate tá NA
+## Remove NA 2.629 links em que o datadate t? NA
 scm_link %>% filter_at(vars(everything()), any_vars(is.na(.)))
 scm_link <- na.omit(scm_link)
 
@@ -47,50 +47,50 @@ for (i in 2:length(years)) {
   available_cik <- rbind(available_cik,
                          tibble(filingY = years[i],
                                 cik = readRDS(paste0("0_data/DTM/corpus_firms",
-                                                     years[i], ".rds")) 
+                                                     years[i], ".rds"))
                          )
   )
-} 
+}
 rm(i, years)
 
 ## Select GVKEYS with valid d1I/A ---------------------------------------------
 ccm_a %>%
-  mutate(fiscalY = year(datadate)) %>% 
-  mutate(filingY = fiscalY + 1) %>% 
+  mutate(fiscalY = year(datadate)) %>%
+  mutate(filingY = fiscalY + 1) %>%
   select(filingY, gvkey:datadate, fiscalY, d1_ia, d0_ia) %>%
   na.omit -> ccm_a2
 
-crsp4 <- readRDS("2_pipeline/2_out/1b_crsp4.rds")
+crsp4 <- readRDS("2_pipeline/1b_crsp4.rds")
 crsp4 <- crsp4 %>% select(permno, gvkey, monthlink, q, cop, dROE,
                           Ret, SG, CFG, CF, cop, PG, EG, dROE, Ie, Id,
                           me)
 
-ccm_a2 %>% left_join(crsp4, by = c("permno", "gvkey", "monthlink")) %>% 
-  # filter(filingY >= 1994) %>% 
+ccm_a2 %>% left_join(crsp4, by = c("permno", "gvkey", "monthlink")) %>%
+  # filter(filingY >= 1994) %>%
   na.omit %>% group_by(datadate)    %>%
   mutate(d1_ia = winsorizar(d1_ia)) %>%
   mutate(d0_ia = winsorizar(d0_ia)) %>%
-  mutate(q     = winsorizar(q))     %>% 
-  mutate(cop   = winsorizar(cop))   %>% 
+  mutate(q     = winsorizar(q))     %>%
+  mutate(cop   = winsorizar(cop))   %>%
   mutate(dROE  = winsorizar(dROE))  %>%
-  
-  mutate(Ret = winsorizar(Ret )) %>% 
-  mutate(SG  = winsorizar(SG  )) %>% 
-  mutate(CFG = winsorizar(CFG )) %>% 
-  mutate(CF  = winsorizar(CF  )) %>% 
-  mutate(PG  = winsorizar(PG  )) %>% 
-  mutate(EG  = winsorizar(EG  )) %>% 
-  mutate(Ie  = winsorizar(Ie  )) %>% 
-  mutate(Id  = winsorizar(Id  )) %>% 
-  
-  ungroup %>% na.omit %>% 
+
+  mutate(Ret = winsorizar(Ret )) %>%
+  mutate(SG  = winsorizar(SG  )) %>%
+  mutate(CFG = winsorizar(CFG )) %>%
+  mutate(CF  = winsorizar(CF  )) %>%
+  mutate(PG  = winsorizar(PG  )) %>%
+  mutate(EG  = winsorizar(EG  )) %>%
+  mutate(Ie  = winsorizar(Ie  )) %>%
+  mutate(Id  = winsorizar(Id  )) %>%
+
+  ungroup %>% na.omit %>%
   filter(filingY %in% available_cik$filingY) -> available_gvkey
 
 as.data.table(available_gvkey)
 as.data.table(available_cik)
 
 # Numero de companhias por ano com CIK e GVKEY
-available_gvkey %>% group_by(filingY) %>% count %>% 
+available_gvkey %>% group_by(filingY) %>% count %>%
   left_join(available_cik %>% group_by(filingY) %>% count, by="filingY") %>%
   select(Filing.Year=filingY, GVKEY=n.x, CIK=n.y) %>% data.frame
 
@@ -100,7 +100,7 @@ available_gvkey %>% group_by(filingY) %>% count %>%
 scm_link <- scm_link %>%
   mutate(fiscaly0 = year(fndate) - 1) %>%
   mutate(fiscalyT = year(lndate) - 1) %>%
-  mutate(cik = as.numeric(cik)) %>% 
+  mutate(cik = as.numeric(cik)) %>%
   select(gvkey, cik, source, n10k, fiscaly0, fiscalyT,
          SECname=coname, COMPname=conm)
 
@@ -121,7 +121,7 @@ scm_link %>% filter(cik   %in% duplicated_cik$cik) %>% arrange(cik)
 #   count %>%
 #   filter(n>1)
 # two_or_more_gvkey <- two_or_more_gvkey$gvkey
-# 
+#
 # ## Analisa gvkey duplicados com overlap
 # scm_link %>% filter(gvkey %in% two_or_more_gvkey) %>% arrange(as.numeric(gvkey)) %>%
 #   group_by(gvkey) %>%
@@ -138,7 +138,7 @@ DT <- as.data.table(scm_link %>% select(gvkey, cik, source, fiscaly0, fiscalyT) 
 
 DT[, y := (fiscalyT - fiscaly0 + 1)] # Qtd. de anos
 DT <- DT[y>0,]
-DT <- DT %>% slice(rep(1:n(), times = y)) 
+DT <- DT %>% slice(rep(1:n(), times = y))
 
 DT[, fiscalY := sequence(.N)+fiscaly0-1, by = c("gvkey", "cik")]
 DT <- DT %>% select(-fiscaly0, -fiscalyT)
@@ -149,11 +149,11 @@ available_gvkey %>% mutate(valid_gvkey = T) -> available_gvkey
 available_cik   %>% mutate(valid_cik   = T) -> available_cik
 DT %>%
   left_join(available_gvkey, by = c("fiscalY", "gvkey")) %>%
-  mutate(cik = as.numeric((cik)) ) %>% 
-  left_join(available_cik, by = c("filingY", "cik")) %>% 
+  mutate(cik = as.numeric((cik)) ) %>%
+  left_join(available_cik, by = c("filingY", "cik")) %>%
   filter(valid_gvkey == TRUE) %>%
-  filter(valid_cik == TRUE) %>% 
-  select(permno, gvkey:source, filingY, y, everything()) %>% 
+  filter(valid_cik == TRUE) %>%
+  select(permno, gvkey:source, filingY, y, everything()) %>%
   select(-valid_gvkey, -valid_cik) -> DT
 
 # ## Duplicated gvkeys and ciks
@@ -186,7 +186,7 @@ sccm_a <- DT %>% select(filing.year=filingY, cik, permno, gvkey, d1_ia:me) %>% a
 rm(available_cik, available_gvkey, ccm_a, ccm_a2, crsp4, DT, duplicated_cik, duplicated_gvkey,
    scm_link, total_by_year, wciklink_gvkey)
 
-saveRDS(sccm_a, "2_pipeline/2_out/3a_sccm_a.rds")
+saveRDS(sccm_a, "2_pipeline/3a_sccm_a.rds")
 
 # ## Analyse specific companies
 # scm_link %>% filter(gvkey=="006066")     # IBM

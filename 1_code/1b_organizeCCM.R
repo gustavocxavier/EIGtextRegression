@@ -1,4 +1,4 @@
-# - - - - - - - - - - - - - - - - - - - - - - # 
+# - - - - - - - - - - - - - - - - - - - - - - #
 # Organize CCM (CCM = CRSP Compustat Merged)  #
 # - - - - - - - - - - - - - - - - - - - - - - #
 
@@ -10,9 +10,9 @@ library(lubridate)
 library(tidyverse)
 
 ## Organize CCM (CCM = CRSP Compustat Merged) ## ###############################
-comp_a <- readRDS(file = "2_pipeline/2_out/1a_cleaned_comp_a.rds")
-comp_q <- readRDS(file = "2_pipeline/2_out/1a_cleaned_comp_q.rds")
-crsp_m <- readRDS(file = "2_pipeline/2_out/1a_cleaned_crsp_m.rds")
+comp_a <- readRDS(file = "2_pipeline/1a_cleaned_comp_a.rds")
+comp_q <- readRDS(file = "2_pipeline/1a_cleaned_comp_q.rds")
+crsp_m <- readRDS(file = "2_pipeline/1a_cleaned_crsp_m.rds")
 
 ccmlink <- readRDS(file = "0_data/wrds/raw_ccmlink.rds")
 ccmlink <- as_tibble(ccmlink)
@@ -41,7 +41,7 @@ ccm_a$permno <- as.integer(ccm_a$permno)
 ## Merge CRSP and Annual Compustat to compute Tobin's Q -----------------------
 
 crsp2 <- crsp_m %>%
-  select(permno, monthlink, date, everything()) %>% 
+  select(permno, monthlink, date, everything()) %>%
   select(-permco, -shrcd, -exchcd,
          -siccd, -ret, -retx, -jdate, -retadj)
 
@@ -52,10 +52,10 @@ ccm_a2 <- ccm_a %>%
          cop, at, dltt, dlc) %>%
   # Importar ME referente fim do ano fiscal para poder calulcar Q de Tobin
   left_join(select(crsp2, permno, fiscaldate=monthlink, meTobin = me),
-            by = c("permno", "fiscaldate")) %>% 
+            by = c("permno", "fiscaldate")) %>%
   # Colocar na mesma escala dos valores contabeis
   mutate(meTobin = meTobin/1000)
-saveRDS(ccm_a2, "2_pipeline/2_out/1b_ccm_a_me.rds")
+saveRDS(ccm_a2, "2_pipeline/1b_ccm_a_me.rds")
 
 ## Adicionando valor de mercado ? ccm_a
 me <- select(ccm_a2, gvkey, permno, monthlink, me = meTobin)
@@ -83,8 +83,8 @@ ccm_a2 <- ccm_a2 %>% select(-meTobin, -dltt, -dlc, -at)
 # 1971, and the growth rate of the split-adjusted shares (Compustat data items
 # CSHO ? AJEX) before 1971 due to the data availability of SSTK
 ccm_a <- ccm_a %>%
-  arrange(gvkey, datadate) %>% 
-  group_by(gvkey) %>% 
+  arrange(gvkey, datadate) %>%
+  group_by(gvkey) %>%
   mutate( equity_increase = new_shares/dplyr::lag(me) )
 setDT(ccm_a)
 ccm_a[equity_increase > 0.05, Ie := 1]
@@ -105,39 +105,39 @@ ccm_q <- ccm_q %>% filter( (datadate >= linkdt) & (datadate <= linkenddt) )
 ccm_q$permno <- as.integer(ccm_q$permno)
 
 ccm_q <- ccm_q %>%
-  select(gvkey, permno, monthlink, datadate, everything()) %>% 
+  select(gvkey, permno, monthlink, datadate, everything()) %>%
   select(-linktype, -linkprim, -linkdt, -linkenddt, -rdq)
 
 ccm_a <- ccm_a %>%
-  select(gvkey, permno, monthlink, datadate, everything()) %>% 
+  select(gvkey, permno, monthlink, datadate, everything()) %>%
   select(-linktype, -linkprim, -linkdt, -linkenddt)
 
 ## Merge monthly CRSP with both comp_a and com_q -------------------------------
 
-crsp3 <- crsp2 %>% 
-  left_join(ccm_a2, by = c("permno", "monthlink")) %>% 
-  arrange(permno, monthlink) %>% 
-  group_by(permno) %>% 
-  fill(gvkey,      .direction = c("down")) %>% 
-  fill(fiscaldate, .direction = c("down")) %>% 
+crsp3 <- crsp2 %>%
+  left_join(ccm_a2, by = c("permno", "monthlink")) %>%
+  arrange(permno, monthlink) %>%
+  group_by(permno) %>%
+  fill(gvkey,      .direction = c("down")) %>%
+  fill(fiscaldate, .direction = c("down")) %>%
   fill(ia,         .direction = c("down")) %>% # <-- nao coloquei no select
   fill(d1_ia,      .direction = c("down")) %>%
   fill(IGc1,       .direction = c("down")) %>%
   fill(d0_ia,      .direction = c("down")) %>%
   fill(IGc0,       .direction = c("down")) %>%
-  fill(cop,        .direction = c("down")) %>% 
-  fill(q,          .direction = c("down")) %>% 
-  
-  mutate(Ret = cumret) %>% 
-  fill(SG , .direction = c("down")) %>% 
-  fill(CFG, .direction = c("down")) %>% 
-  fill(CF , .direction = c("down")) %>% 
-  fill(PG , .direction = c("down")) %>% 
-  fill(EG , .direction = c("down")) %>% 
-  fill(Ie , .direction = c("down")) %>% 
+  fill(cop,        .direction = c("down")) %>%
+  fill(q,          .direction = c("down")) %>%
+
+  mutate(Ret = cumret) %>%
+  fill(SG , .direction = c("down")) %>%
+  fill(CFG, .direction = c("down")) %>%
+  fill(CF , .direction = c("down")) %>%
+  fill(PG , .direction = c("down")) %>%
+  fill(EG , .direction = c("down")) %>%
+  fill(Ie , .direction = c("down")) %>%
   fill(Id , .direction = c("down")) %>%
-  
-  drop_na %>% 
+
+  drop_na %>%
   select(permno, gvkey, date, monthlink, fiscaldate,
          d1_ia, IGc1,
          d0_ia, IGc0, q, Ret, cop, SG, CFG, CF, PG, EG, Ie, Id,
@@ -148,40 +148,40 @@ crsp3 <- crsp2 %>%
 # crsp3 %>% filter(permno == 10001) %>% data.frame %>% head(25)
 # ccm_a2 %>% filter(permno == 10001) %>% data.frame %>% head
 
-ccm_q2 <- ccm_q %>% 
+ccm_q2 <- ccm_q %>%
   select(permno, monthlink, rdq2, dROE) %>% drop_na
 
-crsp4 <- crsp3 %>% 
-  left_join(ccm_q2, by = c("permno", "monthlink")) %>% 
-  group_by(permno) %>% 
-  fill(rdq2, .direction = c("down")) %>% 
+crsp4 <- crsp3 %>%
+  left_join(ccm_q2, by = c("permno", "monthlink")) %>%
+  group_by(permno) %>%
+  fill(rdq2, .direction = c("down")) %>%
   fill(dROE, .direction = c("down")) %>%
-  drop_na(gvkey) %>% 
+  drop_na(gvkey) %>%
   # Missing dRoe values are set to zero in the cross-sectional forecasting
   # regressions.
-  mutate( dROE = if_else(is.na(dROE), 0, dROE)) %>% 
+  mutate( dROE = if_else(is.na(dROE), 0, dROE)) %>%
   select(permno, gvkey, date, monthlink, fiscaldate, rdq=rdq2, everything())
 
 crsp4 %>% filter(permno == 10001)
 
 ccm_a <- ccm_a %>%
   left_join(select(crsp4, permno, monthlink, dROE), by = c("permno", "monthlink"))
- 
+
 crsp4
 ccm_a
 ccm_q
 
 rm(ccmlink, comp_a, comp_q, crsp_m, crsp2, crsp3, ccm_a2, ccm_q2, me)
 
-saveRDS(ccm_a, "2_pipeline/2_out/1b_ccm_a.rds")
-saveRDS(ccm_q, "2_pipeline/2_out/1b_ccm_q.rds")
-saveRDS(crsp4, "2_pipeline/2_out/1b_crsp4.rds")
+saveRDS(ccm_a, "2_pipeline/1b_ccm_a.rds")
+saveRDS(ccm_q, "2_pipeline/1b_ccm_q.rds")
+saveRDS(crsp4, "2_pipeline/1b_crsp4.rds")
 
 rm(ccm_a, ccm_q, crsp4) ; gc()
 
-# ccm_a <- readRDS("2_pipeline/2_out/1b_ccm_a.rds")
-# ccm_q <- readRDS("2_pipeline/2_out/1b_ccm_q.rds")
-# crsp4 <- readRDS("2_pipeline/2_out/1b_crsp4.rds")
+# ccm_a <- readRDS("2_pipeline/1b_ccm_a.rds")
+# ccm_q <- readRDS("2_pipeline/1b_ccm_q.rds")
+# crsp4 <- readRDS("2_pipeline/1b_crsp4.rds")
 
 # ccm_a %>% select(ia=ia, capx=IGc0) %>% na.omit %>%
 #   filter(is.finite(capx) & is.finite(ia)) %>%

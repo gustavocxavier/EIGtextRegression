@@ -2,9 +2,9 @@
 
 # library(xtable)
 
-eval_CS  <- readRDS("2_pipeline/2_out/5a_eigText_evaluation_CS.rds")
-eval_Ind <- readRDS("2_pipeline/2_out/5b_eigText_evaluation_Industry.rds")
-eval_LC  <- readRDS("2_pipeline/2_out/5c_eigText_evaluation_LifeCycle.rds")
+eval_CS  <- readRDS("2_pipeline/5a_eigText_evaluation_CS.rds")
+eval_Ind <- readRDS("2_pipeline/5b_eigText_evaluation_Industry.rds")
+eval_LC  <- readRDS("2_pipeline/5c_eigText_evaluation_LifeCycle.rds")
 
 eval_ALL <- list(eval_CS, eval_Ind, eval_LC)
 

@@ -6,7 +6,7 @@ library(MASS)
 library(tidyverse)
 
 ## Avoid errors in the code due to the conflict between the dplyr and MASS packages.
-select <- dplyr::select 
+select <- dplyr::select
 
 # The data are obtained from Compustat and CRSP, covering the
 # period 1973 to 2014.
@@ -32,7 +32,7 @@ select <- dplyr::select
 
 # AGE is CRSP listed firm age
 # RETA is the ratio of retained earnings to total assets
-# 
+#
 
 # comp_a %>% group_by(year(datadate)) %>% count %>% data.frame %>% summarise(sum = sum(n))
 # comp_a %>% filter(at < 10000) %>% select(gvkey) %>% unique
@@ -64,7 +64,7 @@ lcycle[, ebit_at := ebit / at]
 # csho item is presented in millions of shares.
 lcycle[, meComp := prcc_c*csho]
 
-# Keep only rows with valid at, meComp and ebit 
+# Keep only rows with valid at, meComp and ebit
 lcycle <- lcycle[complete.cases(at, meComp, ebit)]
 
 # Calculate Compustat Age
@@ -88,7 +88,7 @@ lcycle <- lcycle %>%
                                  (oancf >  0 & ivncf >  0 & fincf <= 0) ~ 6,
                                  (oancf <= 0 & ivncf >  0 & fincf >  0) ~ 7,
                                  (oancf <= 0 & ivncf >  0 & fincf <= 0) ~ 8,
-                                 TRUE ~ 0)) # %>% 
+                                 TRUE ~ 0)) # %>%
   # mutate(DCS8g_name = case_when((oancf <= 0 & ivncf <= 0 & fincf >  0) ~ "1 Introduction",
   #                               (oancf >  0 & ivncf <= 0 & fincf >  0) ~ "2       Growth",
   #                               (oancf >  0 & ivncf <= 0 & fincf <= 0) ~ "3       Mature",
@@ -97,26 +97,26 @@ lcycle <- lcycle %>%
   #                               (oancf >  0 & ivncf >  0 & fincf <= 0) ~ "6    Shake-Out",
   #                               (oancf <= 0 & ivncf >  0 & fincf >  0) ~ "7      Decline",
   #                               (oancf <= 0 & ivncf >  0 & fincf <= 0) ~ "8      Decline",
-  #                               TRUE ~ "        Failed")) %>%   
-  # mutate(DCS8g_name = as.factor(DCS8g_name)) 
+  #                               TRUE ~ "        Failed")) %>%
+  # mutate(DCS8g_name = as.factor(DCS8g_name))
 
 # Dickinson (2011) classification scheme (DCS) - 4 groups
-lcycle %>% 
+lcycle %>%
   mutate(DCS = case_when(DCS8g <= 3 ~ DCS8g,
-                         DCS8g >= 4 ~ 4)) %>% 
+                         DCS8g >= 4 ~ 4)) %>%
   mutate(DCS_name = case_when((DCS == 1) ~ "Introduction",
                               (DCS == 2) ~ "Growth",
                               (DCS == 3) ~ "Mature",
-                              (DCS == 4) ~ "Shake-Out/Decline")) %>% 
+                              (DCS == 4) ~ "Shake-Out/Decline")) %>%
   mutate(DCS_name = as.factor(DCS_name)) -> lcycle
 
-lcycle %>% 
+lcycle %>%
   group_by(DCS) %>% count %>% ungroup %>% mutate(f = n/sum(n))
 
 lcycle %>% filter(DCS!=0) %>%
   group_by(DCS) %>% count %>% ungroup %>% mutate(f = n/sum(n))
 
-lcycle %>%  filter(DCS!=0) %>% filter( meComp > 10 & SGrth < 1 & AGrth < 1) %>% 
+lcycle %>%  filter(DCS!=0) %>% filter( meComp > 10 & SGrth < 1 & AGrth < 1) %>%
   group_by(DCS) %>% count %>% ungroup %>% mutate(f = n/sum(n))
 
 # Filter
@@ -124,8 +124,8 @@ lcycle %>% filter( meComp > 10 & SGrth < 1 & AGrth < 1) -> lcycle
 
 # Only valid observations
 lcycle %>%
-  filter(complete.cases(DCS, age, reta, ebit_at, AGrth, meComp, at)) %>% 
-  mutate(finite_test = DCS + age + reta + ebit_at + AGrth + meComp + at) %>% 
+  filter(complete.cases(DCS, age, reta, ebit_at, AGrth, meComp, at)) %>%
+  mutate(finite_test = DCS + age + reta + ebit_at + AGrth + meComp + at) %>%
   filter(is.finite(finite_test)) %>% select(-finite_test) -> lcycle2
 
 # Winsorize
@@ -142,8 +142,8 @@ winsorize <- function (x, fraction=0.01) {
 }
 summary(lcycle2 %>% select(age, reta, ebit_at, AGrth))
 lcycle2 %>% select(age, reta, ebit_at, AGrth) %>% summarise_all(sd)
-lcycle2 %>% 
-  mutate(reta = winsorize(reta)) %>% 
+lcycle2 %>%
+  mutate(reta = winsorize(reta)) %>%
   mutate(ebit_at = winsorize(ebit_at)) -> lcycle2
 # lcycle2 <- lcycle2[complete.cases(reta, ebit_at)]
 summary(lcycle2 %>% select(age, reta, ebit_at, AGrth))
@@ -164,7 +164,7 @@ unique(lda.predict$class)
 # str(lda.predict)
 lcycle2[, faff := lda.predict$class]
 
-lcycle2 %>% 
+lcycle2 %>%
   group_by(faff) %>% count %>% ungroup %>% mutate(f = n/sum(n))
 
 lcycle2 %>% filter(DCS!=0) %>%
@@ -179,5 +179,5 @@ lcycle2 %>% mutate(overlap = DCS==faff) %>%
   group_by(faff) %>% summarise(overlap=sum(overlap), total=n(),
                               percentual=sum(overlap) / n())
 
-saveRDS(lcycle2, "2_pipeline/2_out/2a_life_cycle_faff.rds")
+saveRDS(lcycle2, "2_pipeline/2a_life_cycle_faff.rds")
 

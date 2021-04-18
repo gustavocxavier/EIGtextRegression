@@ -33,13 +33,13 @@ comp_a$year <- lubridate::year(comp_a$datadate)
 # create preferrerd stock
 comp_a <- comp_a %>%
   mutate(ps = ifelse(is.na(pstkrv), pstkl, pstkrv)) %>%
-  mutate(ps = ifelse(is.na(ps), pstk, ps)) %>% 
+  mutate(ps = ifelse(is.na(ps), pstk, ps)) %>%
   mutate(ps = ifelse(is.na(ps), 0, ps))
 
 # create book equity
-comp_a <- comp_a %>% 
+comp_a <- comp_a %>%
   mutate(txditc = ifelse(is.na(txditc), 0, txditc)) %>%
-  mutate(be = (seq + txditc - ps) ) %>% 
+  mutate(be = (seq + txditc - ps) ) %>%
   mutate(be = ifelse(be>0, be, NA)) %>% as_tibble
 
 # # Compara
@@ -54,10 +54,10 @@ comp_a <- comp_a %>%
 # the most recent fiscal year ending at least four months ago minus the total
 # assets from one year prior, scaled by the 1-yearprior total assets.
 comp_a <- comp_a %>%
-  arrange(gvkey, datadate) %>% 
-  group_by(gvkey) %>% 
+  arrange(gvkey, datadate) %>%
+  group_by(gvkey) %>%
   # Create Lagged AT
-  mutate( lag_at = dplyr::lag(at)     ) %>% 
+  mutate( lag_at = dplyr::lag(at)     ) %>%
   # investment-to-assets
   mutate( ia = ((at - lag_at)/lag_at) ) %>%
   ungroup
@@ -76,13 +76,13 @@ comp_a <- comp_a %>%
 # The one-year ahead investment-to-assets change, d1I/A, is the investment-to-
 # assets from the first year after the most recent fiscal year end minus the
 # current investment-to-assets.
-comp_a <- comp_a %>% 
-  arrange(gvkey, datadate) %>% 
-  group_by(gvkey) %>% 
-  mutate(d0_ia = ia - dplyr::lag(ia)) %>% 
+comp_a <- comp_a %>%
+  arrange(gvkey, datadate) %>%
+  group_by(gvkey) %>%
+  mutate(d0_ia = ia - dplyr::lag(ia)) %>%
   mutate(d1_ia = dplyr::lead(ia) - ia) %>%
   mutate(d2_ia = dplyr::lead(ia, n = 2L) - ia) %>%
-  mutate(d3_ia = dplyr::lead(ia, n = 3L) - ia) %>% 
+  mutate(d3_ia = dplyr::lead(ia, n = 3L) - ia) %>%
   ungroup
 
 # comp_a %>%
@@ -102,19 +102,19 @@ comp_a <- comp_a %>%
 # all from the fiscal year ending at least four months ago. <-- de ano p/ mes
 #
 # Missing annual changes are set to zero.
-comp_a <- comp_a %>% 
-  arrange(gvkey, datadate) %>% 
-  group_by(gvkey) %>% 
-  mutate(defrev = drc + drlt) %>% 
+comp_a <- comp_a %>%
+  arrange(gvkey, datadate) %>%
+  group_by(gvkey) %>%
+  mutate(defrev = drc + drlt) %>%
   mutate_at(vars(revt, cogs, xsga, xrd, rect, invt, xpp,
-                 defrev, ap, xacc),  replace_na, 0 ) %>% 
+                 defrev, ap, xacc),  replace_na, 0 ) %>%
   mutate(cop = (revt - cogs - xsga + xrd
                 - (rect - dplyr::lag(rect))
                 - (invt - dplyr::lag(invt))
                 - (xpp  - dplyr::lag(xpp))
                 + (defrev - dplyr::lag(defrev))
                 + (ap - dplyr::lag(ap))
-                + (xacc - dplyr::lag(xacc))      ) / at) %>% 
+                + (xacc - dplyr::lag(xacc))      ) / at) %>%
   ungroup
 
 # comp_a %>% select(gvkey, datadate, d1_ia, ia, cop) %>% as_tibble
@@ -123,14 +123,14 @@ comp_a <- comp_a %>%
 
 ## Compute Sales Growth --------------------------------------------------------
 # SG is the log growth rate of sales (Compustat data item Sale)
-comp_a <- comp_a %>% 
-  arrange(gvkey, datadate) %>% 
-  group_by(gvkey) %>% 
+comp_a <- comp_a %>%
+  arrange(gvkey, datadate) %>%
+  group_by(gvkey) %>%
   mutate(SG = sale / dplyr::lag(sale) ) %>%
   mutate(SG = log(SG) ) %>% ungroup
 
 # The warnings is about the Inf values
-# So I set the Inf values in Sales Growth (SG) as zero 
+# So I set the Inf values in Sales Growth (SG) as zero
 # (zero because that is a dependent variable)
 setDT(comp_a)
 comp_a[!is.finite(SG) & !is.na(SG), SG := 0] %>% as_tibble -> comp_a
@@ -140,42 +140,42 @@ comp_a[!is.finite(SG) & !is.na(SG), SG := 0] %>% as_tibble -> comp_a
 
 ## Compute Cash Flow (CF) ------------------------------------------------------
 # cash flow (Compustat data items NI + DP) divided by capital (Compustat data item PPEGT)
-comp_a <- comp_a %>% 
+comp_a <- comp_a %>%
   mutate_at(vars(ni, dp, ppegt),  replace_na, 0 ) %>%
   mutate(CF = (ni + dp)/ppegt)
 
 ## Compute Cash Flow Growth (CFG) ----------------------------------------------
-comp_a <- comp_a %>% 
-  arrange(gvkey, datadate) %>% 
-  group_by(gvkey) %>% 
+comp_a <- comp_a %>%
+  arrange(gvkey, datadate) %>%
+  group_by(gvkey) %>%
   mutate(CFG = CF - dplyr::lag(CF)) %>% ungroup
 
 ## Compute Earnings Growth (EG) ------------------------------------------------
 # EG is defined as the change in earnings (Compustat data item IB) divided by
 # capital (Compustat data item PPEGT).
-comp_a <- comp_a %>% 
-  arrange(gvkey, datadate) %>% 
-  group_by(gvkey) %>% 
+comp_a <- comp_a %>%
+  arrange(gvkey, datadate) %>%
+  group_by(gvkey) %>%
   mutate(EG = (ib - dplyr::lag(ib))/ ppegt ) %>% ungroup
 
 ## Compute Profitability Growth ------------------------------------------------
 # PG is defined as the change in profitability (Compustat data items
 # EBITDA-(XINT-IDIT)-(TXT-TXDC)) divided by capital (Compustat data item PPEGT).
-comp_a <- comp_a %>% 
-  arrange(gvkey, datadate) %>% 
-  group_by(gvkey) %>% 
-  mutate(profitability = (ebitda - (xint-idit) - (txt - txdc) / ppegt ) ) %>% 
-  mutate(profitability_lag = dplyr::lag(profitability) ) %>% 
+comp_a <- comp_a %>%
+  arrange(gvkey, datadate) %>%
+  group_by(gvkey) %>%
+  mutate(profitability = (ebitda - (xint-idit) - (txt - txdc) / ppegt ) ) %>%
+  mutate(profitability_lag = dplyr::lag(profitability) ) %>%
   mutate(PG = profitability - profitability_lag) %>% ungroup
 
 ## Compute IG as CAPXt/CAPXt-1 -------------------------------------------------
 #
-comp_a <- comp_a %>% 
-  arrange(gvkey, datadate) %>% 
-  group_by(gvkey) %>% 
+comp_a <- comp_a %>%
+  arrange(gvkey, datadate) %>%
+  group_by(gvkey) %>%
   mutate(IGc0 = log( capx / dplyr::lag(capx)  ) ) %>%
-  mutate(IGc1 = log( dplyr::lead(capx) / capx ) ) %>% 
-  mutate(IGc2 = log( dplyr::lead(capx, n = 2L) / capx ) ) %>% 
+  mutate(IGc1 = log( dplyr::lead(capx) / capx ) ) %>%
+  mutate(IGc2 = log( dplyr::lead(capx, n = 2L) / capx ) ) %>%
   mutate(IGc3 = log( dplyr::lead(capx, n = 3L) / capx ) ) %>% ungroup
 
 # The warnings is about the Inf values
@@ -191,12 +191,12 @@ comp_a <- comp_a %>% as_tibble
 # I D is equal to 1 if a firm increases its total debt by more than 10% and 0
 # otherwise, where new debt issues is defined by change in total debt (Compustat
 # data items DLTT + DLC) divided by lag debt.
-comp_a <- comp_a %>% 
-  arrange(gvkey, datadate) %>% 
+comp_a <- comp_a %>%
+  arrange(gvkey, datadate) %>%
   group_by(gvkey) %>%
   mutate_at(vars(dltt, dlc),  replace_na, 0 ) %>%
   mutate(debt_increase = ( (dltt+dlc) - (dplyr::lag(dltt)+dplyr::lag(dltt)) ) /
-           (dplyr::lag(dltt)+dplyr::lag(dltt)) ) %>% 
+           (dplyr::lag(dltt)+dplyr::lag(dltt)) ) %>%
   ungroup
 
 setDT(comp_a)
@@ -253,7 +253,7 @@ comp_q <- comp_q %>% mutate(year = year(datadate)) %>% arrange(gvkey, datadate)
 
 # create preferrerd stock
 comp_q <- comp_q %>%
-  mutate(ps = if_else(is.na(pstkq), pstkrq, pstkq)) %>% 
+  mutate(ps = if_else(is.na(pstkq), pstkrq, pstkq)) %>%
   mutate(ps = if_else(is.na(ps), 0, ps))
 
 ## Create stockholders equity
@@ -265,11 +265,11 @@ comp_q <- comp_q %>%
 #
 
 comp_q <- comp_q %>%
-  mutate(pstkq = if_else(is.na(pstkq), 0, pstkq)) %>% 
+  mutate(pstkq = if_else(is.na(pstkq), 0, pstkq)) %>%
   #    shareholders equity = stockholders equity (item SEQQ)
   # or shareholders equity = or common equity (item CEQQ) + the carrying value of preferred stock (item PSTKQ)
-  mutate(se = if_else(is.na(seqq), ceqq+pstkq, seqq)) %>% 
-  # or shareholders equity = or total assets (item ATQ) - total liabilities (item LTQ) in that order as 
+  mutate(se = if_else(is.na(seqq), ceqq+pstkq, seqq)) %>%
+  # or shareholders equity = or total assets (item ATQ) - total liabilities (item LTQ) in that order as
   mutate(se = if_else(is.na(se), atq-ltq, se))
 # compq['se']=np.where(compq['se'].isnull(), compq['atq']-compq['ltq'], compq['se'])
 
@@ -280,26 +280,26 @@ comp_q <- comp_q %>%
 # deferred taxes and investment tax credit (item TXDITCQ) if available, minus
 # the book value of preferred stock.
 #
-# be (book equity) = se (shareholders equity) 
+# be (book equity) = se (shareholders equity)
 #                       + tax (balance sheet deferred taxes and investment tax credit (item TXDITCQ))
 #                       - ps (book value of preferred stock)
-comp_q <- comp_q %>% 
-  mutate(txditcq = if_else(is.na(txditcq), 0, txditcq)) %>% 
+comp_q <- comp_q %>%
+  mutate(txditcq = if_else(is.na(txditcq), 0, txditcq)) %>%
   # compq['txditcq']=compq['txditcq'].fillna(0)
-  mutate(be = se + txditcq + ps) %>% 
+  mutate(be = se + txditcq + ps) %>%
   # compq['be']=compq['se']+compq['txditcq']-compq['ps']
   mutate(be = ifelse( be > 0, be, NA)) %>% filter(be>0)
 # compq['be']=np.where(compq['be']>0, compq['be'], np.nan)
 
 ## Create 1 quarter Lagged Book Equity
-comp_q <- comp_q %>% 
-  arrange(gvkey, datadate) %>% 
-  group_by(gvkey) %>% 
-  mutate( lag_be = dplyr::lag(be) ) %>% 
+comp_q <- comp_q %>%
+  arrange(gvkey, datadate) %>%
+  group_by(gvkey) %>%
+  mutate( lag_be = dplyr::lag(be) ) %>%
   ungroup
 
 ## Create ROE -----------------------------------------------------------------
-comp_q <- comp_q %>% 
+comp_q <- comp_q %>%
   # Roe is income before extraordinary items (Compustat quarterly item IBQ)
   # scaled by the 1-quarter-lagged book equity
   mutate( roe = ibq / lag_be )
@@ -309,11 +309,11 @@ comp_q <- comp_q %>%
 # scaled by the 1-quarter-lagged book equity. We compute dRoe with earnings
 # from the most recent announcement dates (item RDQ), and if not available,
 # from the fiscal quarter ending at least four months ago.
-comp_q <- comp_q %>% 
+comp_q <- comp_q %>%
   # dRoe is Roe minus the four-quarter-lagged Roe
-  # mutate( quarter= fqtr ) %>% 
-  arrange(gvkey, datadate) %>% group_by(gvkey, fqtr) %>% 
-  mutate( dROE = roe - dplyr::lag(roe,1)) %>% 
+  # mutate( quarter= fqtr ) %>%
+  arrange(gvkey, datadate) %>% group_by(gvkey, fqtr) %>%
+  mutate( dROE = roe - dplyr::lag(roe,1)) %>%
   ungroup
 
 # # conferindo
@@ -357,9 +357,9 @@ comp_q <- as_tibble(DT) ; rm(DT)
 #   # filter(year<1970) %>%
 #   # filter(gvkey == "006066") %>%
 #   select(gvkey, datadate, rdq, rdq2, monthlink, roe, dROE)
-# 
+#
 # comp_q %>%
-#   select(gvkey, datadate, rdq2, roe, dROE) %>% 
+#   select(gvkey, datadate, rdq2, roe, dROE) %>%
 #   filter(!is.na(roe)) %>% arrange(datadate)
 
 # source_python('..\\Python\\eig.py')
@@ -390,7 +390,7 @@ crsp_m[c("permco", "permno",
 # crsp_m['date']=pd.to_datetime(crsp_m['date'])
 # crsp_m['jdate']=crsp_m['date']+MonthEnd(0)
 crsp_m$date  <- as.Date(crsp_m$date)
-crsp_m$jdate <- crsp_m$date 
+crsp_m$jdate <- crsp_m$date
 lubridate::day(crsp_m$jdate) <- lubridate::days_in_month(crsp_m$jdate)
 
 # add delisting return ---------------------------------------------------------
@@ -415,14 +415,14 @@ lubridate::day(dlret$jdate) <- lubridate::days_in_month(dlret$jdate)
 # crsp=crsp.sort_values(by=['jdate','permco','me'])
 crsp <- crsp_m %>% left_join(dlret, by=c("permno", "jdate"))
 crsp <- crsp %>%
-  mutate(dlret = replace_na(dlret, 0)) %>% 
-  mutate(ret = replace_na(ret, 0)) %>% 
-  mutate(retadj = (1+ret)*(1+dlret)-1) %>% 
-  mutate(me = abs(prc)*shrout) %>% 
-  select(-dlret, -dlstdt, -prc, -shrout) %>% 
+  mutate(dlret = replace_na(dlret, 0)) %>%
+  mutate(ret = replace_na(ret, 0)) %>%
+  mutate(retadj = (1+ret)*(1+dlret)-1) %>%
+  mutate(me = abs(prc)*shrout) %>%
+  select(-dlret, -dlstdt, -prc, -shrout) %>%
   arrange(jdate, permco, me)
 
-## Load the python data to confront 
+## Load the python data to confront
 crsp_py <- readRDS("0_data/wrds/py_crsp.rds")
 crsp
 crsp_py %>% arrange(jdate, permco, me)
@@ -468,16 +468,16 @@ decme <- decme %>% select(permno, date, jdate, dec_me=me, year)
 # crsp2=crsp2.sort_values(by=['permno','date'])
 library(lubridate)
 crsp2 %>%
-  mutate(ffdate = jdate %m-% months(6)) %>% 
-  mutate(ffyear = year(ffdate)) %>% 
-  mutate(ffmonth = month(ffdate)) %>% 
-  mutate(OnePlusRetx=1+retx) %>% 
+  mutate(ffdate = jdate %m-% months(6)) %>%
+  mutate(ffyear = year(ffdate)) %>%
+  mutate(ffmonth = month(ffdate)) %>%
+  mutate(OnePlusRetx=1+retx) %>%
   arrange(permno, date) -> crsp2
 
 # # cumret by stock
 # crsp2['cumretx']=crsp2.groupby(['permno','ffyear'])['1+retx'].cumprod()
 crsp2 <- crsp2 %>%
-  mutate(retx1 = replace_na(OnePlusRetx, 1)) %>% 
+  mutate(retx1 = replace_na(OnePlusRetx, 1)) %>%
   group_by(permno, ffyear) %>%
   mutate(cumretx = cumprod(retx1)) %>% ungroup
 
@@ -487,18 +487,18 @@ crsp2 %>% as_tibble -> crsp2
 
 # # lag cumret
 # crsp2['lcumretx']=crsp2.groupby(['permno'])['cumretx'].shift(1)
-crsp2 %>% group_by(permno) %>% 
+crsp2 %>% group_by(permno) %>%
   mutate(lcumretx = dplyr::lag(cumretx)) %>% ungroup -> crsp2
 
 # # lag market cap
 # crsp2['lme']=crsp2.groupby(['permno'])['me'].shift(1)
-crsp2 %>% group_by(permno) %>% 
+crsp2 %>% group_by(permno) %>%
   mutate(lme = dplyr::lag(me)) %>% ungroup -> crsp2
 
 # # if first permno then use me/(1+retx) to replace the missing value
 # crsp2['count']=crsp2.groupby(['permno']).cumcount()
 # crsp2['lme']=np.where(crsp2['count']==0, crsp2['me']/crsp2['1+retx'], crsp2['lme'])
-crsp2 %>% mutate(temp1 = 1) %>% group_by(permno) %>% 
+crsp2 %>% mutate(temp1 = 1) %>% group_by(permno) %>%
   mutate(count = cumsum(temp1)) %>% select(-temp1) -> crsp2
 setDT(crsp2)
 crsp2[count==1] ; crsp2[count==1, lme := me/retx1]
@@ -522,14 +522,14 @@ decme <- decme %>% mutate(year = year+1) %>% select(permno, year, dec_me)
 
 # # Info as of June
 # crsp3_jun = crsp3[crsp3['month']==6]
-# 
+#
 # crsp_jun = pd.merge(crsp3_jun, decme, how='inner', on=['permno','year'])
 # crsp_jun=crsp_jun[['permno','date', 'jdate', 'shrcd','exchcd','retadj','me','wt','cumretx','mebase','lme','dec_me', 'siccd']]
 # crsp_jun=crsp_jun.sort_values(by=['permno','jdate']).drop_duplicates()
 crsp3_jun <- crsp3 %>% filter(month==6)
-crsp_jun <- crsp3_jun %>% inner_join(decme, by=c("permno", "year")) %>% 
-  select(permno,date, jdate, shrcd,exchcd,retadj,me,wt,cumretx,mebase,lme,dec_me, siccd) %>% 
-  arrange(permno, jdate) %>% 
+crsp_jun <- crsp3_jun %>% inner_join(decme, by=c("permno", "year")) %>%
+  select(permno,date, jdate, shrcd,exchcd,retadj,me,wt,cumretx,mebase,lme,dec_me, siccd) %>%
+  arrange(permno, jdate) %>%
   distinct
 
 
@@ -551,11 +551,11 @@ crsp_m <- crsp_m %>% as_tibble %>% select(permno, permno, date, monthlink, every
 
 crsp_m <- crsp_m %>%
   left_join(dlret, by=c("permno", "jdate")) %>%
-  mutate(dlret = replace_na(dlret, 0)) %>% 
-  mutate(ret = replace_na(ret, 0)) %>% 
-  mutate(retadj = (1+ret)*(1+dlret)-1) %>% 
-  mutate(me = abs(prc)*shrout) %>% 
-  select(-dlret, -dlstdt, -prc, -shrout) %>% 
+  mutate(dlret = replace_na(dlret, 0)) %>%
+  mutate(ret = replace_na(ret, 0)) %>%
+  mutate(retadj = (1+ret)*(1+dlret)-1) %>%
+  mutate(me = abs(prc)*shrout) %>%
+  select(-dlret, -dlstdt, -prc, -shrout) %>%
   arrange(jdate, permco, me)
 
 ## >> Save data ----------------------------------------------------------------
@@ -564,9 +564,9 @@ crsp_m <- crsp_m %>%
 # saveRDS(comp_q, "~/Temporary_EIG_Cap1/cleaned_comp_q.rds")
 # saveRDS(crsp_m, "~/Temporary_EIG_Cap1/cleaned_crsp_m.rds")
 
-saveRDS(comp_a, "2_pipeline/2_out/1a_cleaned_comp_a.rds")
-saveRDS(crsp_m, "2_pipeline/2_out/1a_cleaned_crsp_m.rds")
-saveRDS(comp_q, "2_pipeline/2_out/1a_cleaned_comp_q.rds")
+saveRDS(comp_a, "2_pipeline/1a_cleaned_comp_a.rds")
+saveRDS(crsp_m, "2_pipeline/1a_cleaned_crsp_m.rds")
+saveRDS(comp_q, "2_pipeline/1a_cleaned_comp_q.rds")
 
 # >> Exclude financial and utility firms --------------------------------------
 # Following DeAngelo et al. (2006); Huang and Ritter (2009) and
@@ -580,7 +580,7 @@ saveRDS(comp_q, "2_pipeline/2_out/1a_cleaned_comp_q.rds")
 #   filter( !(sic  %between% c(6000, 6999)) ) %>% # Exclude financial firms
 #   filter( !(sic  %between% c(4900, 4949)) ) %>% # Exclude utility Firms
 #   select(gvkey)
-# 
+#
 # crsp_names <- readRDS("0_data/wrds/raw_crsp_names.rds")
 # crsp_names %>%
 #   filter( !(siccd  %between% c(6000, 6999)) ) %>% # Exclude financial firms
@@ -598,5 +598,5 @@ crsp_m2 <- crsp_m2 %>% filter( !(siccd %between% c(4900, 4949)) )
 
 ## >> Save data ----------------------------------------------------------------
 
-saveRDS(comp_a2, "2_pipeline/2_out/1a_cleaned_comp_a2.rds")
-saveRDS(crsp_m2, "2_pipeline/2_out/1a_cleaned_crsp_m2.rds")
+saveRDS(comp_a2, "2_pipeline/1a_cleaned_comp_a2.rds")
+saveRDS(crsp_m2, "2_pipeline/1a_cleaned_crsp_m2.rds")

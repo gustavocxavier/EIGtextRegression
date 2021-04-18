@@ -2,7 +2,7 @@ library(data.table)
 library(tidyverse)
 
 # High Predictive Words on Cross-Section ---------------------------------------
-eigText <- readRDS("2_pipeline/2_out/5a_eigText_terms_CS.rds")
+eigText <- readRDS("2_pipeline/5a_eigText_terms_CS.rds")
 
 highPredictiveWords <- function(list_eigText, group=NULL) {
 
@@ -49,7 +49,7 @@ highPredictiveWords <- function(list_eigText, group=NULL) {
 highPredictiveWords(eigText)
 
 # High Predictive Words by Industry --------------------------------------------
-eigText <- readRDS("2_pipeline/2_out/5b_eigText_terms_Industry.rds")
+eigText <- readRDS("2_pipeline/5b_eigText_terms_Industry.rds")
 
 # identical(eigText$y1999$words$ind452010, eigText[[1]]$words$ind452010)
 # identical(eigText$y1999[[2]]$ind452010, eigText$y1999$words$ind452010)
@@ -181,4 +181,4 @@ highPredictiveWords(eigText, 'ind352020') # Pharmaceuticals ## <---
 
 
 # High Predictive Words by Life Cycle ------------------------------------------
-eigText <- readRDS("2_pipeline/2_out/5c_eigText_terms_LifeCycle.rds")
+eigText <- readRDS("2_pipeline/5c_eigText_terms_LifeCycle.rds")

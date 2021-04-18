@@ -125,7 +125,7 @@ estimateByLifeCycleTerms <- function(YEAR, data_base) {
   require(foreach)
 
   # gics <- readRDS("0_data/wrds/raw_gics.rds")
-  lcycle <- readRDS("2_pipeline/2_out/2a_life_cycle_faff.rds")
+  lcycle <- readRDS("2_pipeline/2a_life_cycle_faff.rds")
   setDT(lcycle)
   lcycle <- lcycle %>%
     mutate(filing.year = fyear + 1) %>%
@@ -247,7 +247,7 @@ estimateByLifeCycleTerms <- function(YEAR, data_base) {
 ## eigText - Year 1 ------------------------------------------------------------
 eigText <- list()
 # debug(estimateByLifeCycleTerms)
-sccm_a <- readRDS("2_pipeline/2_out/3a_sccm_a.rds") %>% mutate(y = d1_ia)
+sccm_a <- readRDS("2_pipeline/3a_sccm_a.rds") %>% mutate(y = d1_ia)
 
 eigText$y1999 <- estimateByLifeCycleTerms(1999, data_base = sccm_a)
 eigText$y2000 <- estimateByLifeCycleTerms(2000, data_base = sccm_a)
@@ -275,7 +275,7 @@ eigText$y2017 <- estimateByLifeCycleTerms(2017, data_base = sccm_a)
 eigText$y2018 <- estimateByLifeCycleTerms(2018, data_base = sccm_a)
 eigText$y2019 <- estimateByLifeCycleTerms(2019, data_base = sccm_a)
 
-saveRDS(eigText, "2_pipeline/2_out/5c_eigText_terms_LifeCycle.rds")
+saveRDS(eigText, "2_pipeline/5c_eigText_terms_LifeCycle.rds")
 
 ## eigText - Year 2 ------------------------------------------------------------
 
@@ -309,7 +309,7 @@ eigTextLC2$y2017 <- estimateByLifeCycleTerms(2017, data_base = sccm_a)
 eigTextLC2$y2018 <- estimateByLifeCycleTerms(2018, data_base = sccm_a)
 eigTextLC2$y2019 <- estimateByLifeCycleTerms(2019, data_base = sccm_a)
 
-saveRDS(eigTextLC2, "2_pipeline/2_out/5c_eigText_terms_LifeCycle2.rds")
+saveRDS(eigTextLC2, "2_pipeline/5c_eigText_terms_LifeCycle2.rds")
 
 ## eigText - Year 3 ------------------------------------------------------------
 eigTextLC3 <- list()
@@ -343,20 +343,20 @@ eigTextLC3$y2017 <- estimateByLifeCycleTerms(2017, data_base = sccm_a)
 eigTextLC3$y2018 <- estimateByLifeCycleTerms(2018, data_base = sccm_a)
 eigTextLC3$y2019 <- estimateByLifeCycleTerms(2019, data_base = sccm_a)
 
-saveRDS(eigTextLC3, "2_pipeline/2_out/5c_eigText_terms_LifeCycle3.rds")
+saveRDS(eigTextLC3, "2_pipeline/5c_eigText_terms_LifeCycle3.rds")
 
-eigTextLC1 <- readRDS("2_pipeline/2_out/5c_eigText_terms_LifeCycle.rds")
-eigTextLC2 <- readRDS("2_pipeline/2_out/5c_eigText_terms_LifeCycle2.rds")
-eigTextLC3 <- readRDS("2_pipeline/2_out/5c_eigText_terms_LifeCycle3.rds")
+eigTextLC1 <- readRDS("2_pipeline/5c_eigText_terms_LifeCycle.rds")
+eigTextLC2 <- readRDS("2_pipeline/5c_eigText_terms_LifeCycle2.rds")
+eigTextLC3 <- readRDS("2_pipeline/5c_eigText_terms_LifeCycle3.rds")
 
 ### eigText - Year 1 - Evaluate ------------------------------------------------
 
-eigText <- readRDS("2_pipeline/2_out/5c_eigText_terms_LifeCycle.rds")
+eigText <- readRDS("2_pipeline/5c_eigText_terms_LifeCycle.rds")
 eigTextAll <- bind_rows(lapply(eigText, "[[", 1))
 
 # Set the same length by taking sub sample.
 set.seed(1)
-HMXZ <- readRDS("2_pipeline/2_out/4a_hmxz.rds")
+HMXZ <- readRDS("2_pipeline/4a_hmxz.rds")
 HMXZ <- HMXZ[month(date)==6,]
 HMmodel <- HMXZ[sample(nrow(HMXZ), size = nrow(eigTextAll)*0.5),]
 M1model <- eigTextAll[sample(nrow(eigTextAll), size = nrow(eigTextAll)*0.5),]
@@ -388,13 +388,13 @@ RMSE1;test1
 
 ### eigText - Year 2 - Evaluate ------------------------------------------------
 
-# eigText2 <- readRDS("2_pipeline/2_out/5c_eigText_terms_LifeCycle2.rds")
+# eigText2 <- readRDS("2_pipeline/5c_eigText_terms_LifeCycle2.rds")
 
 
 # HMXZ  <- readRDS("~/Data/eig/hmxz2.rds")
-HMXZ <- readRDS("2_pipeline/2_out/4a_hmxz.rds")
+HMXZ <- readRDS("2_pipeline/4a_hmxz.rds")
 HMXZ  <- HMXZ[month(date)==6,]
-eigText <- readRDS("2_pipeline/2_out/5c_eigText_terms_LifeCycle2.rds")
+eigText <- readRDS("2_pipeline/5c_eigText_terms_LifeCycle2.rds")
 eigTextAll <- bind_rows(lapply(eigText, "[[", 1))
 
 # Set the same length by taking sub sample.
@@ -425,12 +425,12 @@ RMSE2;test2
 
 ### eigText - Year 3 - Evaluate ------------------------------------------------
 
-eigText3 <- readRDS("2_pipeline/2_out/5c_eigText_terms_LifeCycle3.rds")
+eigText3 <- readRDS("2_pipeline/5c_eigText_terms_LifeCycle3.rds")
 
 # HMXZ  <- readRDS("~/Data/eig/hmxz3.rds")
-HMXZ <- readRDS("2_pipeline/2_out/4a_hmxz.rds")
+HMXZ <- readRDS("2_pipeline/4a_hmxz.rds")
 HMXZ  <- HMXZ[month(date)==6,]
-eigText <- readRDS("2_pipeline/2_out/5b_eigText_terms_Industry3.rds")
+eigText <- readRDS("2_pipeline/5b_eigText_terms_Industry3.rds")
 eigTextAll <- bind_rows(lapply(eigText, "[[", 1))
 
 # Set the same length by taking sub sample.
@@ -463,7 +463,7 @@ RMSE3;test3
 ## Output Evaluation -----------------------------------------------------------
 evaluation <- list(RMSE = c(RMSE1, RMSE2, RMSE3),
                    "t-stat" = list(test1, test2, test3))
-saveRDS(evaluation, "2_pipeline/2_out/5c_eigText_evaluation_LifeCycle.rds")
+saveRDS(evaluation, "2_pipeline/5c_eigText_evaluation_LifeCycle.rds")
 
 ## MSE Analysis: Confront with HMXZ model --------------------------------------
 

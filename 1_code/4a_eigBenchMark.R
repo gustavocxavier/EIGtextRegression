@@ -7,8 +7,8 @@ source("1_code/functions.R")
 # distributions each month.
 
 # Winsorize all variables at the 1st and 99th percentiles of their distributions
-# each month. 
-crsp4 <- readRDS("2_pipeline/2_out/1b_crsp4.rds")
+# each month.
+crsp4 <- readRDS("2_pipeline/1b_crsp4.rds")
 
 DT <- crsp4 %>% select(-rdq) %>% filter(date>"1969-12-31") %>% as.data.table
 DT[, d1_ia  := winsorizar(d1_ia),  by = c("date")]
@@ -19,7 +19,7 @@ DT <- DT[complete.cases(d1_ia, cop, q, dROE)]
 crsp5 <- DT %>% as_tibble %>% select(permno:date, fiscaldate, d1_ia, cop, q, dROE, me)
 rm(DT)
 
-saveRDS(crsp5, "2_pipeline/2_out/4a_igmodel_winsorized.rds")
+saveRDS(crsp5, "2_pipeline/4a_igmodel_winsorized.rds")
 
 # crsp5 %>% select(d1_ia, q, cop, dROE) %>% drop_na
 # summary(lm(d1_ia ~ q + cop + dROE, data = crsp5, weights = me))
@@ -36,11 +36,11 @@ saveRDS(crsp5, "2_pipeline/2_out/4a_igmodel_winsorized.rds")
 
 setDT(crsp5)
 
-crsp5 %>% group_by(gvkey) %>% 
-  mutate(d1_ia   = dplyr::lag(d1_ia, 12)) %>% 
-  mutate(q       = dplyr::lag(q, 12)) %>% 
-  mutate(cop     = dplyr::lag(cop, 12)) %>% 
-  mutate(dROE    = dplyr::lag(dROE, 12)) %>% 
+crsp5 %>% group_by(gvkey) %>%
+  mutate(d1_ia   = dplyr::lag(d1_ia, 12)) %>%
+  mutate(q       = dplyr::lag(q, 12)) %>%
+  mutate(cop     = dplyr::lag(cop, 12)) %>%
+  mutate(dROE    = dplyr::lag(dROE, 12)) %>%
   mutate(me      = dplyr::lag(me,12)) %>% na.omit -> crsp6
 
 setDT(crsp6)
@@ -94,7 +94,7 @@ summary(HMXZ)
 # HMXZ <- HMXZ %>% filter(date>="1972-06-30")
 
 HMXZ %>% group_by(date) %>%
-  summarise(correl = cor(d1_ia, EIG)) %>% 
+  summarise(correl = cor(d1_ia, EIG)) %>%
   summarise(mean(correl))
 
 HMXZ[,deciles := cut(EIG, quantile(EIG, probs = 0:10/10), labels = FALSE, include.lowest = TRUE), by=date]
@@ -108,4 +108,4 @@ result_monthly_cs_reg <- cbind(result_monthly_cs_reg,
                                Rank=round(c(corSpearman$estimate, corSpearman$p.value),3))
 result_monthly_cs_reg
 
-saveRDS(na.omit(HMXZ), file = "2_pipeline/2_out/4a_hmxz.rds")
+saveRDS(na.omit(HMXZ), file = "2_pipeline/4a_hmxz.rds")

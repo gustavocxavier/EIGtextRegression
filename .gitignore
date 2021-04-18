@@ -1,6 +1,7 @@
 0_data/*
 1_code/_ignore_test
 1_code/*_ignore_*
+2_pipeline
 2_pipeline/*.rds
 3_output/*
 # History files

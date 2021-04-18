@@ -5,8 +5,7 @@ This repository contains code to create the dataset for my work in progress call
 
 How to Run the Code
 -------------------
-Open start.R in your R studio. The code creates some subfolders where it will
-store temporary data for each step, so that you don't have to run the entire
+Open `start.R` in your R studio. The code creates some subfolders where it will store temporary data for each step, so that you don't have to run the entire
 code more than once. 
 
 CORE PRINCIPLE:

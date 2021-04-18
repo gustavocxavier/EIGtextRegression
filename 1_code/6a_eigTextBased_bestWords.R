@@ -1,15 +1,54 @@
-# TODO: Update this file to do all best words tables instead of files 5a, 5b and 5c
-
 library(data.table)
 library(tidyverse)
 
 # High Predictive Words on Cross-Section ---------------------------------------
-eigText <- readRDS("2_pipeline/2_out/5b_eigText_terms_CS.rds")
+eigText <- readRDS("2_pipeline/2_out/5a_eigText_terms_CS.rds")
+
+highPredictiveWords <- function(list_eigText, group=NULL) {
+
+  bestWords <- lapply(list_eigText, "[[", 2)
+
+  if (is.null(group)) {
+    bestWords <- bind_rows(bestWords)
+
+    dt1 <- bestWords %>%
+      filter( !(variables %in% c("(Intercept)", "IGt0","Ret", "q", "cop", "dROE", "Id")) ) %>%
+      group_by(words = variables) %>% summarise(coeff= mean(coefficients)) %>%
+      arrange(-coeff) %>% top_n(15) %>% mutate(coeff = round(coeff,3)) %>%
+      as.data.frame
+
+    dt2 <- bestWords %>%
+      filter( !(variables %in% c("(Intercept)", "IGt0","Ret", "q", "cop", "dROE", "Id")) ) %>%
+      group_by(words = variables) %>% summarise(coeff= mean(coefficients)) %>%
+      arrange(coeff) %>% top_n(-15) %>% mutate(coeff = round(coeff,3)) %>%
+      as.data.frame
+  } else {
+    groupWords <- lapply(bestWords, function(x, i) x[[match(group, names(x))]], i=group)
+
+    groupWords[is.na(groupWords)] <- NULL
+
+    groupWords <- bind_rows(groupWords)
+
+    dt1 <- groupWords %>%
+      filter( !(variables %in% c("(Intercept)", "IGt0","Ret", "q", "cop", "dROE", "Id")) ) %>%
+      group_by(words = variables) %>% summarise(coeff= mean(coefficients)) %>%
+      arrange(-coeff) %>% top_n(15) %>% mutate(coeff = round(coeff,3)) %>% filter(coeff>0) %>%
+      as.data.frame
+
+    dt2 <- groupWords %>%
+      filter( !(variables %in% c("(Intercept)", "IGt0","Ret", "q", "cop", "dROE", "Id")) ) %>%
+      group_by(words = variables) %>% summarise(coeff= mean(coefficients)) %>%
+      arrange(coeff) %>% top_n(-15) %>% mutate(coeff = round(coeff,3)) %>% filter(coeff<0) %>%
+      as.data.frame
+  }
+  output <- rbind(dt1, data.frame(words="---", coeff=NA), dt2)
+
+  return(output)
+}
+
+highPredictiveWords(eigText)
 
 # High Predictive Words by Industry --------------------------------------------
-eigText <- readRDS("2_pipeline/2_out/5b_eigText_terms_Industry.rds")
-
-# High Predictive Words by Life Cycle ------------------------------------------
 eigText <- readRDS("2_pipeline/2_out/5b_eigText_terms_Industry.rds")
 
 # identical(eigText$y1999$words$ind452010, eigText[[1]]$words$ind452010)
@@ -45,6 +84,7 @@ highPredictiveWords <- function(list_eigText, industry) {
 
   return(output)
 }
+
 # 452010 - Communications Equipment
 ind452010 <- highPredictiveWords(eigText, "ind452010")
 # 452020 - Computers & Peripherals
@@ -85,7 +125,7 @@ highPredictiveWords(eigText, 'ind203040') # Road & Rail
 # highPredictiveWords(eigText, 'ind203050') # Transportation Infrastructure
 highPredictiveWords(eigText, 'ind251010') # Auto Components
 # highPredictiveWords(eigText, 'ind251020') # Automobiles
-highPredictiveWords(eigText, 'ind252010') # Household Durables ## < ----
+highPredictiveWords(eigText, 'ind252010') # Household Durables ## <---
 highPredictiveWords(eigText, 'ind252020') # Leisure Products
 highPredictiveWords(eigText, 'ind252030') # Textiles, Apparel & Luxury Goods
 highPredictiveWords(eigText, 'ind253010') # Hotels, Restaurants & Leisure
@@ -138,3 +178,7 @@ highPredictiveWords(eigText, 'ind551010') # Electric Utilities
 highPredictiveWords(eigText, 'ind252010') # Household Durables ## <---
 highPredictiveWords(eigText, 'ind302020') # Food Products ## <---
 highPredictiveWords(eigText, 'ind352020') # Pharmaceuticals ## <---
+
+
+# High Predictive Words by Life Cycle ------------------------------------------
+eigText <- readRDS("2_pipeline/2_out/5c_eigText_terms_LifeCycle.rds")

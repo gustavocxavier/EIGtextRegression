@@ -34,6 +34,14 @@ getLocalTermsMatrix <- function(filing_year, data_base) {
     zz <- zz[!is.na(firms$gvkey),]
     firms <- firms %>% filter(!is.na(gvkey))
     nrow(firms) ; nrow(zz)
+
+    # # Retirando Empresas com MD&A < 10k -------------------------
+    # nrow(firms) ; nrow(zz)
+    # firms_ignore <- readRDS(paste0("~/test_forecast/ignore", filing_year,".rds"))
+    # zz <- zz[!(firms$cik %in% firms_ignore),]
+    # firms <- firms %>% filter(!(cik %in% firms_ignore))
+    # nrow(firms) ; nrow(zz)
+
     outputSample <- list(firms=as.data.table(select(firms, filing.year, cik, permno, gvkey)),
                          y=firms$y,
                          # P=select(firms, q=0),
@@ -123,6 +131,7 @@ getLocalTermsMatrix <- function(filing_year, data_base) {
     return(outputSample)
   }
 }
+# debug(getLocalTermsMatrix)
 
 estimateByYear <- function(YEAR, data_base) {
   require(foreach)
@@ -257,6 +266,7 @@ winsorize <- function (x, fraction=0.01) {
 
 ## Load SCCM_A -----------------------------------------------------------------
 sccm_a <- readRDS("2_pipeline/3a_sccm_a.rds")
+sccm_a
 setDT(sccm_a)
 sccm_a[, d1_ia := winsorize(d1_ia),  by=c("filing.year")]
 sccm_a[, me    := winsorize(me  ),   by=c("filing.year")]
